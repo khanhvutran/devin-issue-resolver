@@ -1,22 +1,23 @@
 import { useEffect, useState } from 'react'
+import createClient from 'openapi-fetch'
+import type { paths, components } from './api-schema'
 import './App.css'
 
-interface HealthResponse {
-  message: string
-  status: string
-}
+const client = createClient<paths>()
+
+type HealthResponse = components['schemas']['HealthOut']
 
 function App() {
   const [data, setData] = useState<HealthResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/api/health')
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        return res.json()
+    client
+      .GET('/api/health')
+      .then(({ data, error }) => {
+        if (error) throw new Error(JSON.stringify(error))
+        setData(data)
       })
-      .then((json: HealthResponse) => setData(json))
       .catch((err) => setError(err.message))
   }, [])
 

@@ -19,7 +19,17 @@
       "Bash(/Users/khanhtran/devin/backend/venv/bin/pip install:*)",
       "Bash(npm create:*)",
       "Bash(npm install:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(npx openapi-typescript:*)",
+      "Bash(/Users/khanhtran/devin/backend/venv/bin/python:*)",
+      "WebFetch(domain:connexion.readthedocs.io)",
+      "WebFetch(domain:pypi.org)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(source:*)",
+      "Bash(pip install:*)",
+      "Bash(python -c:*)",
+      "Bash(npm run generate-api:*)"
     ]
   }
 }

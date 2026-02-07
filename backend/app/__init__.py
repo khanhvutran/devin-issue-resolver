@@ -1,15 +1,9 @@
-from apiflask import APIFlask
+import connexion
+from pathlib import Path
 
 
 def create_app():
-    app = APIFlask(
-        __name__,
-        title="Devin API",
-        version="1.0.0",
-    )
-
-    from app.routes.health import health_bp
-
-    app.register_blueprint(health_bp)
-
+    spec_dir = Path(__file__).resolve().parent.parent / "openapi"
+    app = connexion.FlaskApp(__name__, specification_dir=str(spec_dir))
+    app.add_api("openapi.yaml")
     return app
