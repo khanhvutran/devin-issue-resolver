@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import React from 'react'
 import createClient from 'openapi-fetch'
 import type { paths, components } from './api-schema'
 import './App.css'
@@ -7,11 +7,11 @@ const client = createClient<paths>()
 
 type HealthResponse = components['schemas']['HealthOut']
 
-function App() {
-  const [data, setData] = useState<HealthResponse | null>(null)
-  const [error, setError] = useState<string | null>(null)
+export const App = React.memo(function AppFn() {
+  const [data, setData] = React.useState<HealthResponse | null>(null)
+  const [error, setError] = React.useState<string | null>(null)
 
-  useEffect(() => {
+  React.useEffect(() => {
     client
       .GET('/api/health')
       .then(({ data, error }) => {
@@ -39,6 +39,4 @@ function App() {
       )}
     </div>
   )
-}
-
-export default App
+});
