@@ -51,9 +51,15 @@ export const App = React.memo(function AppFn() {
       ) : (
         !error && <p>Loading...</p>
       )}
-      {issues != null && <ul>
-        {issues.map(issue => <li key={issue.issue_id}>{issue.issue_id}</li>)}
-      </ul>}
+      {issues != null && (
+        <ul className="space-y-2">
+          {issues.map(issue => (
+            <li key={issue.issue_id} className="p-3 border rounded hover:bg-gray-50">
+              <span className="font-semibold">#{issue.issue_id}:</span> {issue.issue_title}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 });

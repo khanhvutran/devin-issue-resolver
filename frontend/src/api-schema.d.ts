@@ -53,6 +53,7 @@ export interface components {
             status: string;
         };
         Issue: {
+            issue_title: ReactNode;
             issue_id: string;
         };
     };
