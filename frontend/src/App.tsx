@@ -1,14 +1,18 @@
 import React from 'react'
 import createClient from 'openapi-fetch'
-import type { paths, components } from './api-schema'
+import type { paths, operations } from './api-schema'
 import './App.css'
 
 const client = createClient<paths>()
 
-type HealthResponse = components['schemas']['HealthOut']
+type HealthResponse =  operations["app.routes.health.health_check"]["responses"]["200"]["content"]["application/json"]
+type IssuesResponse = operations["app.routes.issues.issues"]["responses"]["200"]["content"]["application/json"]
+
+
 
 export const App = React.memo(function AppFn() {
   const [data, setData] = React.useState<HealthResponse | null>(null)
+  const [issues, setIssues] = React.useState<IssuesResponse | null>(null)
   const [error, setError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
@@ -17,6 +21,16 @@ export const App = React.memo(function AppFn() {
       .then(({ data, error }) => {
         if (error) throw new Error(JSON.stringify(error))
         setData(data)
+      })
+      .catch((err) => setError(err.message))
+  }, [])
+
+  React.useEffect(() => {
+    client
+      .GET('/api/issues')
+      .then(({ data, error }) => {
+        if (error) throw new Error(JSON.stringify(error))
+          setIssues(data)
       })
       .catch((err) => setError(err.message))
   }, [])
@@ -37,6 +51,9 @@ export const App = React.memo(function AppFn() {
       ) : (
         !error && <p>Loading...</p>
       )}
+      {issues != null && <ul>
+        {issues.map(issue => <li key={issue.issue_id}>{issue.issue_id}</li>)}
+      </ul>}
     </div>
   )
 });

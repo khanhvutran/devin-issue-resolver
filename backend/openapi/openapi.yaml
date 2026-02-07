@@ -16,6 +16,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthOut"
+  /api/issues:
+    get:
+      operationId: app.routes.issues.issues
+      summary: Github Issues
+      description: Returns list of github issues
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Issue"
 
 components:
   schemas:
@@ -28,4 +42,11 @@ components:
         message:
           type: string
         status:
+          type: string
+    Issue:
+      type: object
+      required:
+        - issue_id
+      properties:
+        issue_id:
           type: string
