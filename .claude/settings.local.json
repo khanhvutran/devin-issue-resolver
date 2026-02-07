@@ -9,7 +9,17 @@
       "Bash(. \"$HOME/.nvm/nvm.sh\")",
       "WebSearch",
       "WebFetch(domain:apiflask.com)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(curl:*)",
+      "Bash(bash:*)",
+      "Bash(export NVM_DIR=\"$HOME/.nvm\")",
+      "Bash([ -s \"$NVM_DIR/nvm.sh\" ])",
+      "Bash(. \"$NVM_DIR/nvm.sh\")",
+      "Bash(nvm install:*)",
+      "Bash(/Users/khanhtran/devin/backend/venv/bin/pip install:*)",
+      "Bash(npm create:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)"
     ]
   }
 }
