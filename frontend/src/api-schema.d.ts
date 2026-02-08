@@ -33,7 +33,7 @@ export interface paths {
         };
         /**
          * Github Issues
-         * @description Returns list of github issues
+         * @description Returns list of github issues for a given repository
          */
         get: operations["app.routes.issues.issues"];
         put?: never;
@@ -53,8 +53,18 @@ export interface components {
             status: string;
         };
         Issue: {
-            issue_title: ReactNode;
-            issue_id: string;
+            issue_id: number;
+            issue_title: string;
+            state: string;
+            author: string;
+            author_avatar?: string;
+            labels?: components["schemas"]["Label"][];
+            created_at: string;
+            comment_count: number;
+        };
+        Label: {
+            name: string;
+            color: string;
         };
     };
     responses: never;
@@ -87,7 +97,10 @@ export interface operations {
     };
     "app.routes.issues.issues": {
         parameters: {
-            query?: never;
+            query: {
+                /** @description GitHub repository URL (e.g. https://github.com/owner/repo) */
+                github_url: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;

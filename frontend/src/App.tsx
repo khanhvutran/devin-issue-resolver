@@ -1,59 +1,61 @@
-import { useQuery } from '@tanstack/react-query'
-import createClient from 'openapi-fetch'
-import type { paths, operations } from './api-schema'
+import { useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router'
 import './App.css'
 
-const client = createClient<paths>()
-
-type HealthResponse = operations["app.routes.health.health_check"]["responses"]["200"]["content"]["application/json"]
-type IssuesResponse = operations["app.routes.issues.issues"]["responses"]["200"]["content"]["application/json"]
+const GITHUB_URL_RE = /^https?:\/\/github\.com\/[^/]+\/[^/]+/
 
 export function App() {
-  const { data, isLoading: healthLoading, error: healthError } = useQuery<HealthResponse>({
-    queryKey: ['health'],
-    queryFn: async () => {
-      const { data, error } = await client.GET('/api/health')
-      if (error) throw new Error(JSON.stringify(error))
-      return data
-    },
-  })
+  const [githubUrl, setGithubUrl] = useState('')
+  const [validationError, setValidationError] = useState('')
+  const navigate = useNavigate()
 
-  const { data: issues, error: issuesError } = useQuery<IssuesResponse>({
-    queryKey: ['issues'],
-    queryFn: async () => {
-      const { data, error } = await client.GET('/api/issues')
-      if (error) throw new Error(JSON.stringify(error))
-      return data
-    },
-  })
-
-  const error = healthError || issuesError
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault()
+    const url = githubUrl.trim()
+    if (!url) {
+      setValidationError('Please enter a URL.')
+      return
+    }
+    if (!GITHUB_URL_RE.test(url)) {
+      setValidationError('Please enter a valid GitHub repository URL (e.g. https://github.com/owner/repo).')
+      return
+    }
+    setValidationError('')
+    navigate(`/issues?github_url=${encodeURIComponent(url)}`)
+  }
 
   return (
     <div className="App">
       <h1>Devin</h1>
-      {error && <p style={{ color: 'red' }}>Error: {error.message}</p>}
-      {data ? (
-        <div>
-          <p>
-            Backend says: <strong>{data.message}</strong>
+      <p style={{ marginBottom: '2rem', color: '#888' }}>
+        Enter a GitHub repository URL to browse its issues
+      </p>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+        <input
+          type="text"
+          value={githubUrl}
+          onChange={e => { setGithubUrl(e.target.value); setValidationError('') }}
+          placeholder="https://github.com/owner/repo"
+          style={{
+            width: '100%',
+            maxWidth: '500px',
+            padding: '0.8rem 1rem',
+            fontSize: '1.1rem',
+            borderRadius: '8px',
+            border: `1px solid ${validationError ? '#d93025' : '#444'}`,
+            background: 'inherit',
+            color: 'inherit',
+          }}
+        />
+        {validationError && (
+          <p style={{ color: '#d93025', margin: 0, fontSize: '0.9rem' }}>
+            {validationError}
           </p>
-          <p>
-            Status: <strong>{data.status}</strong>
-          </p>
-        </div>
-      ) : (
-        !error && healthLoading && <p>Loading...</p>
-      )}
-      {issues != null && (
-        <ul className="space-y-2">
-          {issues.map(issue => (
-            <li key={issue.issue_id} className="p-3 border rounded hover:bg-gray-50">
-              <span className="font-semibold">#{issue.issue_id}:</span> {issue.issue_title}
-            </li>
-          ))}
-        </ul>
-      )}
+        )}
+        <button type="submit" style={{ padding: '0.8rem 2rem', fontSize: '1.1rem' }}>
+          Browse Issues
+        </button>
+      </form>
     </div>
   )
 }
