@@ -37,6 +37,61 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Issue"
+  /api/devin/analyze:
+    post:
+      operationId: app.routes.devin.analyze
+      summary: Start Devin analysis
+      description: Creates a Devin session to analyze a GitHub issue
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnalyzeRequest"
+      responses:
+        "202":
+          description: Analysis started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyzeResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/devin/analysis:
+    get:
+      operationId: app.routes.devin.get_analysis_status
+      summary: Get analysis status
+      description: Returns the current status and results of a Devin analysis
+      parameters:
+        - name: github_url
+          in: query
+          required: true
+          schema:
+            type: string
+          description: GitHub repository URL
+        - name: issue_id
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Issue number
+      responses:
+        "200":
+          description: Analysis found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisResult"
+        "404":
+          description: Analysis not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
 components:
   schemas:
@@ -87,4 +142,69 @@ components:
         name:
           type: string
         color:
+          type: string
+    AnalyzeRequest:
+      type: object
+      required:
+        - github_url
+        - issue_id
+        - issue_title
+      properties:
+        github_url:
+          type: string
+          description: GitHub repository URL
+        issue_id:
+          type: integer
+          description: Issue number
+        issue_title:
+          type: string
+          description: Issue title
+    AnalyzeResponse:
+      type: object
+      required:
+        - session_id
+        - status
+      properties:
+        session_id:
+          type: string
+        status:
+          type: string
+        devin_url:
+          type: string
+    AnalysisResult:
+      type: object
+      required:
+        - github_url
+        - issue_id
+        - status
+      properties:
+        github_url:
+          type: string
+        issue_id:
+          type: integer
+        session_id:
+          type: string
+        status:
+          type: string
+        plan:
+          type: string
+          nullable: true
+        confidence_score:
+          type: integer
+          nullable: true
+        devin_url:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          nullable: true
+        updated_at:
+          type: string
+          nullable: true
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
           type: string

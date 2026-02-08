@@ -44,6 +44,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/devin/analyze": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Devin analysis
+         * @description Creates a Devin session to analyze a GitHub issue
+         */
+        post: operations["app.routes.devin.analyze"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/devin/analysis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get analysis status
+         * @description Returns the current status and results of a Devin analysis
+         */
+        get: operations["app.routes.devin.get_analysis_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -65,6 +105,33 @@ export interface components {
         Label: {
             name: string;
             color: string;
+        };
+        AnalyzeRequest: {
+            /** @description GitHub repository URL */
+            github_url: string;
+            /** @description Issue number */
+            issue_id: number;
+            /** @description Issue title */
+            issue_title: string;
+        };
+        AnalyzeResponse: {
+            session_id: string;
+            status: string;
+            devin_url?: string;
+        };
+        AnalysisResult: {
+            github_url: string;
+            issue_id: number;
+            session_id?: string;
+            status: string;
+            plan?: string | null;
+            confidence_score?: number | null;
+            devin_url?: string | null;
+            created_at?: string | null;
+            updated_at?: string | null;
+        };
+        ErrorResponse: {
+            error: string;
         };
     };
     responses: never;
@@ -114,6 +181,73 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Issue"][];
+                };
+            };
+        };
+    };
+    "app.routes.devin.analyze": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnalyzeRequest"];
+            };
+        };
+        responses: {
+            /** @description Analysis started */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyzeResponse"];
+                };
+            };
+            /** @description Server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    "app.routes.devin.get_analysis_status": {
+        parameters: {
+            query: {
+                /** @description GitHub repository URL */
+                github_url: string;
+                /** @description Issue number */
+                issue_id: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Analysis found */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalysisResult"];
+                };
+            };
+            /** @description Analysis not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };

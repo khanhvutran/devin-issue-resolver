@@ -29,7 +29,13 @@
       "Bash(source:*)",
       "Bash(pip install:*)",
       "Bash(python -c:*)",
-      "Bash(npm run generate-api:*)"
+      "Bash(npm run generate-api:*)",
+      "WebFetch(domain:docs.devin.ai)",
+      "Bash(test:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(/Users/khanhtran/devin/backend/venv/bin/pip show connexion)",
+      "Bash(export PATH=\"/opt/homebrew/bin:$PATH\")"
     ]
   }
 }

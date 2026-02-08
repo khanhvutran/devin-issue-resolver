@@ -13,3 +13,8 @@ frontend/dist/
 .vscode/
 .idea/
 *.swp
+
+## Databse
+backend/devin.db
+backend/devin.db-shm
+backend/devin.db-wal
