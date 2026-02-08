@@ -115,3 +115,5 @@ const { data } = await client.GET('/api/users/{user_id}', {
 | `backend/app/__init__.py` | App factory -- Connexion setup |
 | `frontend/src/api-schema.d.ts` | Auto-generated TS types (do not edit manually) |
 | `frontend/vite.config.ts` | Vite dev server and API proxy config |
+
+<!-- Dummy change to verify Devin setup -->
