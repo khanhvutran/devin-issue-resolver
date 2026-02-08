@@ -32,12 +32,13 @@ def build_prompt(github_url, issue_id, issue_title):
         "Review the codebase and the issue, then provide:\n"
         "1. A detailed implementation plan to resolve this issue\n"
         "2. A confidence score from 1-10 on how likely this plan will succeed\n\n"
-        "Please update the structured output with your results using this exact JSON format. "
-        "Update it as soon as you have your analysis ready:\n"
+        "IMPORTANT: Your final message MUST be ONLY valid JSON with no other text, "
+        "no markdown fences, and no explanation. Use this exact schema:\n"
         f"{schema_json}\n\n"
         "Where:\n"
         '- "plan" is a string with your detailed step-by-step implementation plan\n'
-        '- "confidence_score" is an integer from 1 to 10\n'
+        '- "confidence_score" is an integer from 1 to 10\n\n'
+        "Return ONLY the JSON object as your final message. Nothing else."
     )
 
 
@@ -93,17 +94,24 @@ def parse_devin_response(messages):
     if not devin_text:
         return None, None
 
-    # Extract plan
-    plan_match = re.search(r"PLAN:\s*\n(.*?)(?=\nCONFIDENCE:|\Z)", devin_text, re.DOTALL)
-    plan = plan_match.group(1).strip() if plan_match else devin_text.strip()
+    # Strip markdown code fences if present
+    stripped = devin_text.strip()
+    if stripped.startswith("```"):
+        stripped = re.sub(r"^```(?:json)?\s*\n?", "", stripped)
+        stripped = re.sub(r"\n?```\s*$", "", stripped)
 
-    # Extract confidence score
-    confidence_match = re.search(r"CONFIDENCE:\s*(\d+)", devin_text)
-    confidence = int(confidence_match.group(1)) if confidence_match else None
-    if confidence is not None:
-        confidence = max(1, min(10, confidence))
-
-    return plan, confidence
+    try:
+        data = json.loads(stripped)
+        plan = data.get("plan")
+        confidence = data.get("confidence_score")
+        if isinstance(confidence, int):
+            confidence = max(1, min(10, confidence))
+        else:
+            confidence = None
+        return plan, confidence
+    except (json.JSONDecodeError, AttributeError):
+        # Fallback: return raw text as plan if JSON parsing fails
+        return stripped, None
 
 
 def poll_session(session_id, github_url, issue_id):
