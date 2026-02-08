@@ -50,3 +50,5 @@ components:
       properties:
         issue_id:
           type: string
+        issue_title:
+          type: string
