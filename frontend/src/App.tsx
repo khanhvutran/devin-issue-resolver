@@ -1,44 +1,38 @@
-import React from 'react'
+import { useQuery } from '@tanstack/react-query'
 import createClient from 'openapi-fetch'
 import type { paths, operations } from './api-schema'
 import './App.css'
 
 const client = createClient<paths>()
 
-type HealthResponse =  operations["app.routes.health.health_check"]["responses"]["200"]["content"]["application/json"]
+type HealthResponse = operations["app.routes.health.health_check"]["responses"]["200"]["content"]["application/json"]
 type IssuesResponse = operations["app.routes.issues.issues"]["responses"]["200"]["content"]["application/json"]
 
+export function App() {
+  const { data, isLoading: healthLoading, error: healthError } = useQuery<HealthResponse>({
+    queryKey: ['health'],
+    queryFn: async () => {
+      const { data, error } = await client.GET('/api/health')
+      if (error) throw new Error(JSON.stringify(error))
+      return data
+    },
+  })
 
+  const { data: issues, error: issuesError } = useQuery<IssuesResponse>({
+    queryKey: ['issues'],
+    queryFn: async () => {
+      const { data, error } = await client.GET('/api/issues')
+      if (error) throw new Error(JSON.stringify(error))
+      return data
+    },
+  })
 
-export const App = React.memo(function AppFn() {
-  const [data, setData] = React.useState<HealthResponse | null>(null)
-  const [issues, setIssues] = React.useState<IssuesResponse | null>(null)
-  const [error, setError] = React.useState<string | null>(null)
-
-  React.useEffect(() => {
-    client
-      .GET('/api/health')
-      .then(({ data, error }) => {
-        if (error) throw new Error(JSON.stringify(error))
-        setData(data)
-      })
-      .catch((err) => setError(err.message))
-  }, [])
-
-  React.useEffect(() => {
-    client
-      .GET('/api/issues')
-      .then(({ data, error }) => {
-        if (error) throw new Error(JSON.stringify(error))
-          setIssues(data)
-      })
-      .catch((err) => setError(err.message))
-  }, [])
+  const error = healthError || issuesError
 
   return (
     <div className="App">
       <h1>Devin</h1>
-      {error && <p style={{ color: 'red' }}>Error: {error}</p>}
+      {error && <p style={{ color: 'red' }}>Error: {error.message}</p>}
       {data ? (
         <div>
           <p>
@@ -49,7 +43,7 @@ export const App = React.memo(function AppFn() {
           </p>
         </div>
       ) : (
-        !error && <p>Loading...</p>
+        !error && healthLoading && <p>Loading...</p>
       )}
       {issues != null && (
         <ul className="space-y-2">
@@ -62,4 +56,4 @@ export const App = React.memo(function AppFn() {
       )}
     </div>
   )
-});
+}
