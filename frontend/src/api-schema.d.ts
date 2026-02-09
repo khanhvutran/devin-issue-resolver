@@ -95,6 +95,7 @@ export interface components {
         Issue: {
             issue_id: number;
             issue_title: string;
+            body?: string;
             state: string;
             author: string;
             author_avatar?: string;

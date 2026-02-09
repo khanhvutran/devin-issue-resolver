@@ -35,7 +35,8 @@
       "Bash(ls:*)",
       "Bash(cat:*)",
       "Bash(/Users/khanhtran/devin/backend/venv/bin/pip show connexion)",
-      "Bash(export PATH=\"/opt/homebrew/bin:$PATH\")"
+      "Bash(export PATH=\"/opt/homebrew/bin:$PATH\")",
+      "Bash(npx tsc:*)"
     ]
   }
 }

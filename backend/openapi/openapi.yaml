@@ -119,6 +119,8 @@ components:
           type: integer
         issue_title:
           type: string
+        body:
+          type: string
         state:
           type: string
         author:

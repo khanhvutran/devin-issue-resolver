@@ -32,6 +32,7 @@ def issues(github_url: str) -> List[Dict]:
             result.append({
                 'issue_id': issue.number,
                 'issue_title': issue.title,
+                'body': issue.body or '',
                 'state': issue.state,
                 'author': issue.user.login if issue.user else 'unknown',
                 'author_avatar': issue.user.avatar_url if issue.user else '',

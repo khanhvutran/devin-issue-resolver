@@ -1,13 +1,116 @@
 import { useSearchParams, Link } from 'react-router'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import createClient from 'openapi-fetch'
 import type { paths, components } from '../api-schema'
 
 const client = createClient<paths>()
 
-type Issue = components['schemas']['Issue']
 type AnalysisResult = components['schemas']['AnalysisResult']
+
+function getConfidenceColor(score: number): string {
+  if (score >= 8) return '#238636'
+  if (score >= 5) return '#d29922'
+  return '#d93025'
+}
+
+function InlineSpinner() {
+  return (
+    <div
+      style={{
+        display: 'inline-block',
+        width: '14px',
+        height: '14px',
+        border: '2px solid #555',
+        borderTopColor: '#646cff',
+        borderRadius: '50%',
+        animation: 'spin 0.8s linear infinite',
+        verticalAlign: 'middle',
+      }}
+    />
+  )
+}
+
+function AnalysisBadge({ githubUrl, issueId }: { githubUrl: string; issueId: number }) {
+  const { data: analysis } = useQuery<AnalysisResult | null>({
+    queryKey: ['devin-analysis', githubUrl, issueId],
+    queryFn: async () => {
+      const { data, error, response } = await client.GET('/api/devin/analysis', {
+        params: { query: { github_url: githubUrl, issue_id: issueId } },
+      })
+      if (response.status === 404) return null
+      if (error) throw new Error(JSON.stringify(error))
+      return data
+    },
+    refetchInterval: (query) => {
+      const status = query.state.data?.status
+      if (status === 'pending' || status === 'analyzing') return 5000
+      return false
+    },
+  })
+
+  if (!analysis) return null
+
+  if (analysis.status === 'pending' || analysis.status === 'analyzing') {
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', color: '#888' }}>
+        <InlineSpinner /> Analyzing...
+      </span>
+    )
+  }
+
+  if (analysis.status === 'failed') {
+    return (
+      <span
+        style={{
+          fontSize: '0.75rem',
+          padding: '2px 8px',
+          borderRadius: '12px',
+          fontWeight: 600,
+          background: '#d93025',
+          color: '#fff',
+        }}
+      >
+        Failed
+      </span>
+    )
+  }
+
+  if (analysis.status === 'completed' && analysis.confidence_score != null) {
+    return (
+      <span
+        style={{
+          fontSize: '0.75rem',
+          padding: '2px 8px',
+          borderRadius: '12px',
+          fontWeight: 600,
+          background: getConfidenceColor(analysis.confidence_score),
+          color: '#fff',
+        }}
+      >
+        Score: {analysis.confidence_score}/10
+      </span>
+    )
+  }
+
+  if (analysis.status === 'completed') {
+    return (
+      <span
+        style={{
+          fontSize: '0.75rem',
+          padding: '2px 8px',
+          borderRadius: '12px',
+          fontWeight: 600,
+          background: '#238636',
+          color: '#fff',
+        }}
+      >
+        Analyzed
+      </span>
+    )
+  }
+
+  return null
+}
 
 function extractRepoName(url: string): string {
   try {
@@ -44,24 +147,6 @@ function Spinner() {
         }}
       />
     </div>
-  )
-}
-
-function InlineSpinner() {
-  return (
-    <div
-      style={{
-        display: 'inline-block',
-        width: '16px',
-        height: '16px',
-        border: '2px solid #555',
-        borderTopColor: '#646cff',
-        borderRadius: '50%',
-        animation: 'spin 0.8s linear infinite',
-        verticalAlign: 'middle',
-        marginRight: '0.5rem',
-      }}
-    />
   )
 }
 
@@ -137,196 +222,6 @@ function EmptyState() {
       <p style={{ margin: 0 }}>This repository doesn't have any open issues.</p>
     </div>
   )
-}
-
-function getConfidenceColor(score: number): string {
-  if (score >= 8) return '#238636'
-  if (score >= 5) return '#d29922'
-  return '#d93025'
-}
-
-function DevinAnalysis({ githubUrl, issue }: { githubUrl: string; issue: Issue }) {
-  const [triggered, setTriggered] = useState(false)
-  const queryClient = useQueryClient()
-
-  const analysisQuery = useQuery<AnalysisResult | null>({
-    queryKey: ['devin-analysis', githubUrl, issue.issue_id],
-    queryFn: async () => {
-      const { data, error, response } = await client.GET('/api/devin/analysis', {
-        params: { query: { github_url: githubUrl, issue_id: issue.issue_id } },
-      })
-      if (response.status === 404) return null
-      if (error) throw new Error(JSON.stringify(error))
-      return data
-    },
-    refetchInterval: (query) => {
-      const status = query.state.data?.status
-      if (status === 'pending' || status === 'analyzing') return 5000
-      return false
-    },
-  })
-
-  const analyzeMutation = useMutation({
-    mutationFn: async () => {
-      const { data, error } = await client.POST('/api/devin/analyze', {
-        body: {
-          github_url: githubUrl,
-          issue_id: issue.issue_id,
-          issue_title: issue.issue_title,
-        },
-      })
-      if (error) throw new Error(JSON.stringify(error))
-      return data
-    },
-    onSuccess: () => {
-      setTriggered(true)
-      queryClient.invalidateQueries({ queryKey: ['devin-analysis', githubUrl, issue.issue_id] })
-    },
-  })
-
-  const analysis = analysisQuery.data
-  const isActive = analysis?.status === 'pending' || analysis?.status === 'analyzing'
-
-  // No analysis exists yet
-  if (!analysis && !triggered) {
-    return (
-      <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #333' }}>
-        <button
-          onClick={() => analyzeMutation.mutate()}
-          disabled={analyzeMutation.isPending}
-          style={{
-            padding: '0.4rem 1rem',
-            fontSize: '0.85rem',
-            cursor: analyzeMutation.isPending ? 'not-allowed' : 'pointer',
-            background: '#646cff',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '6px',
-            opacity: analyzeMutation.isPending ? 0.7 : 1,
-          }}
-        >
-          {analyzeMutation.isPending ? 'Starting...' : 'Analyze with Devin'}
-        </button>
-        {analyzeMutation.isError && (
-          <p style={{ color: '#d93025', fontSize: '0.8rem', margin: '0.5rem 0 0 0' }}>
-            Failed to start analysis. Please try again.
-          </p>
-        )}
-      </div>
-    )
-  }
-
-  // Analysis in progress
-  if (isActive || (triggered && !analysis)) {
-    return (
-      <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #333' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#888' }}>
-          <InlineSpinner />
-          <span>Devin is analyzing this issue...</span>
-          {analysis?.devin_url && (
-            <a
-              href={analysis.devin_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ color: '#646cff', marginLeft: '0.5rem' }}
-            >
-              Watch live
-            </a>
-          )}
-        </div>
-      </div>
-    )
-  }
-
-  // Analysis failed
-  if (analysis?.status === 'failed') {
-    return (
-      <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #333' }}>
-        <div style={{ fontSize: '0.85rem' }}>
-          <span style={{ color: '#d93025', fontWeight: 600 }}>Analysis failed</span>
-          {analysis.plan && (
-            <p style={{ color: '#888', margin: '0.25rem 0 0 0', fontSize: '0.8rem' }}>
-              {analysis.plan}
-            </p>
-          )}
-          <button
-            onClick={() => {
-              setTriggered(false)
-              analyzeMutation.mutate()
-            }}
-            style={{
-              marginTop: '0.5rem',
-              padding: '0.3rem 0.8rem',
-              fontSize: '0.8rem',
-              cursor: 'pointer',
-              background: 'transparent',
-              color: '#646cff',
-              border: '1px solid #646cff',
-              borderRadius: '4px',
-            }}
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  // Analysis completed
-  if (analysis?.status === 'completed') {
-    return (
-      <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #333' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-          <span style={{ fontWeight: 600, fontSize: '0.85rem', color: '#ccc' }}>Devin Analysis</span>
-          {analysis.confidence_score != null && (
-            <span
-              style={{
-                fontSize: '0.75rem',
-                padding: '2px 8px',
-                borderRadius: '12px',
-                fontWeight: 600,
-                background: getConfidenceColor(analysis.confidence_score),
-                color: '#fff',
-              }}
-            >
-              Confidence: {analysis.confidence_score}/10
-            </span>
-          )}
-          {analysis.devin_url && (
-            <a
-              href={analysis.devin_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ fontSize: '0.75rem', color: '#646cff' }}
-            >
-              View session
-            </a>
-          )}
-        </div>
-        {analysis.plan && (
-          <pre
-            style={{
-              background: '#1a1a2e',
-              border: '1px solid #333',
-              borderRadius: '6px',
-              padding: '0.75rem',
-              fontSize: '0.8rem',
-              color: '#ccc',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-              margin: 0,
-              maxHeight: '300px',
-              overflowY: 'auto',
-            }}
-          >
-            {analysis.plan}
-          </pre>
-        )}
-      </div>
-    )
-  }
-
-  return null
 }
 
 const GITHUB_URL_RE = /^https?:\/\/github\.com\/[^/]+\/[^/]+/
@@ -416,6 +311,7 @@ export function Issues() {
                 >
                   {issue.state}
                 </span>
+                <AnalysisBadge githubUrl={githubUrl} issueId={issue.issue_id} />
               </div>
 
               <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem' }}>{issue.issue_title}</h3>
@@ -440,20 +336,34 @@ export function Issues() {
                 </div>
               )}
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem', color: '#888' }}>
-                {issue.author_avatar && (
-                  <img
-                    src={issue.author_avatar}
-                    alt={issue.author}
-                    style={{ width: '20px', height: '20px', borderRadius: '50%' }}
-                  />
-                )}
-                <span>{issue.author}</span>
-                <span>opened {formatDate(issue.created_at)}</span>
-                <span>{issue.comment_count} comment{issue.comment_count !== 1 ? 's' : ''}</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem', color: '#888' }}>
+                  {issue.author_avatar && (
+                    <img
+                      src={issue.author_avatar}
+                      alt={issue.author}
+                      style={{ width: '20px', height: '20px', borderRadius: '50%' }}
+                    />
+                  )}
+                  <span>{issue.author}</span>
+                  <span>opened {formatDate(issue.created_at)}</span>
+                  <span>{issue.comment_count} comment{issue.comment_count !== 1 ? 's' : ''}</span>
+                </div>
+                <Link
+                  to={`/issue?github_url=${encodeURIComponent(githubUrl)}&issue_id=${issue.issue_id}`}
+                  style={{
+                    padding: '0.4rem 1rem',
+                    fontSize: '0.85rem',
+                    background: '#646cff',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    textDecoration: 'none',
+                  }}
+                >
+                  View
+                </Link>
               </div>
-
-              <DevinAnalysis githubUrl={githubUrl} issue={issue} />
             </div>
           ))}
         </div>
