@@ -1,4 +1,4 @@
-from app.db import get_analysis, upsert_analysis, update_analysis
+from app.db import get_analysis, upsert_analysis, update_analysis, delete_analysis as db_delete_analysis
 from app.devin_client import (
     build_prompt,
     build_fix_prompt,
@@ -117,3 +117,12 @@ def get_fix_status(github_url, issue_id):
         "fix_devin_url": analysis.get("fix_devin_url"),
         "pr_url": analysis.get("pr_url"),
     }
+
+
+def remove_analysis(github_url, issue_id):
+    analysis = get_analysis(github_url, issue_id)
+    if analysis is None:
+        return {"error": "Analysis not found"}, 404
+
+    db_delete_analysis(github_url, issue_id)
+    return None, 204

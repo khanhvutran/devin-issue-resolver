@@ -99,3 +99,13 @@ def update_analysis(github_url, issue_id, **kwargs):
     )
     conn.commit()
     conn.close()
+
+
+def delete_analysis(github_url, issue_id):
+    conn = get_connection()
+    conn.execute(
+        "DELETE FROM devin_analyses WHERE github_url = ? AND issue_id = ?",
+        (github_url, issue_id),
+    )
+    conn.commit()
+    conn.close()

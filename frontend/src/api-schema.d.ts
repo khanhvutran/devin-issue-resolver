@@ -78,7 +78,11 @@ export interface paths {
         get: operations["app.routes.devin.get_analysis_status"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete analysis
+         * @description Deletes a Devin analysis for a GitHub issue
+         */
+        delete: operations["app.routes.devin.remove_analysis"];
         options?: never;
         head?: never;
         patch?: never;
@@ -304,6 +308,38 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["AnalysisResult"];
                 };
+            };
+            /** @description Analysis not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    "app.routes.devin.remove_analysis": {
+        parameters: {
+            query: {
+                /** @description GitHub repository URL */
+                github_url: string;
+                /** @description Issue number */
+                issue_id: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Analysis deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Analysis not found */
             404: {

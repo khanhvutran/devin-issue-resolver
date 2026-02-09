@@ -92,6 +92,32 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: app.routes.devin.remove_analysis
+      summary: Delete analysis
+      description: Deletes a Devin analysis for a GitHub issue
+      parameters:
+        - name: github_url
+          in: query
+          required: true
+          schema:
+            type: string
+          description: GitHub repository URL
+        - name: issue_id
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Issue number
+      responses:
+        "204":
+          description: Analysis deleted
+        "404":
+          description: Analysis not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /api/devin/fix:
     post:
       operationId: app.routes.devin.fix_issue

@@ -102,6 +102,20 @@ function DevinAnalysis({ githubUrl, issue }: { githubUrl: string; issue: Issue }
     },
   })
 
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await client.DELETE('/api/devin/analysis', {
+        params: { query: { github_url: githubUrl, issue_id: issue.issue_id } },
+      })
+      if (error) throw new Error(JSON.stringify(error))
+    },
+    onSuccess: () => {
+      setTriggered(false)
+      queryClient.invalidateQueries({ queryKey: ['devin-analysis', githubUrl, issue.issue_id] })
+      queryClient.invalidateQueries({ queryKey: ['devin-fix', githubUrl, issue.issue_id] })
+    },
+  })
+
   const analysis = analysisQuery.data
   const isActive = analysis?.status === 'pending' || analysis?.status === 'analyzing'
 
@@ -161,23 +175,41 @@ function DevinAnalysis({ githubUrl, issue }: { githubUrl: string; issue: Issue }
             {analysis.plan}
           </p>
         )}
-        <button
-          onClick={() => {
-            setTriggered(false)
-            analyzeMutation.mutate()
-          }}
-          style={{
-            padding: '0.4rem 1rem',
-            fontSize: '0.85rem',
-            cursor: 'pointer',
-            background: 'transparent',
-            color: '#646cff',
-            border: '1px solid #646cff',
-            borderRadius: '4px',
-          }}
-        >
-          Retry
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button
+            onClick={() => {
+              setTriggered(false)
+              analyzeMutation.mutate()
+            }}
+            style={{
+              padding: '0.4rem 1rem',
+              fontSize: '0.85rem',
+              cursor: 'pointer',
+              background: 'transparent',
+              color: '#646cff',
+              border: '1px solid #646cff',
+              borderRadius: '4px',
+            }}
+          >
+            Retry
+          </button>
+          <button
+            onClick={() => deleteMutation.mutate()}
+            disabled={deleteMutation.isPending}
+            style={{
+              padding: '0.4rem 1rem',
+              fontSize: '0.85rem',
+              cursor: deleteMutation.isPending ? 'not-allowed' : 'pointer',
+              background: 'transparent',
+              color: '#d93025',
+              border: '1px solid #d93025',
+              borderRadius: '4px',
+              opacity: deleteMutation.isPending ? 0.7 : 1,
+            }}
+          >
+            {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+          </button>
+        </div>
       </div>
     )
   }
@@ -228,6 +260,22 @@ function DevinAnalysis({ githubUrl, issue }: { githubUrl: string; issue: Issue }
             }}
           >
             {analyzeMutation.isPending ? 'Starting...' : 'Re-analyze'}
+          </button>
+          <button
+            onClick={() => deleteMutation.mutate()}
+            disabled={deleteMutation.isPending}
+            style={{
+              padding: '0.3rem 0.8rem',
+              fontSize: '0.8rem',
+              cursor: deleteMutation.isPending ? 'not-allowed' : 'pointer',
+              background: 'transparent',
+              color: '#d93025',
+              border: '1px solid #d93025',
+              borderRadius: '4px',
+              opacity: deleteMutation.isPending ? 0.7 : 1,
+            }}
+          >
+            {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
           </button>
         </div>
         {analysis.plan && (
