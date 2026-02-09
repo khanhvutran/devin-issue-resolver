@@ -106,6 +106,38 @@ const { data } = await client.GET('/api/users/{user_id}', {
 // data.name is typed as string
 ```
 
+### Adding backend dependencies
+
+1. Activate the virtual environment:
+
+```bash
+cd backend
+source venv/bin/activate
+```
+
+2. Install the new package:
+
+```bash
+pip install <package-name>
+```
+
+3. Update `requirements.txt` to pin the dependency:
+
+```bash
+pip freeze > requirements.txt
+```
+
+Alternatively, manually add the dependency with an explicit version constraint to `requirements.txt` and then install:
+
+```bash
+echo 'requests>=2.31.0' >> requirements.txt
+pip install -r requirements.txt
+```
+
+4. Commit the updated `requirements.txt` so other developers get the same dependencies.
+
+> **Tip:** Use version constraints for reproducibility: `==` for exact pins, `>=` for minimum versions, or `~=` for compatible releases (e.g., `~=2.31.0` allows `2.31.x` patches).
+
 ### Key files
 
 | File | Purpose |
