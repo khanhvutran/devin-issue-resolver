@@ -30,6 +30,20 @@ def init_db():
         )
     """)
     conn.commit()
+
+    # Add fix-tracking columns (idempotent for existing databases)
+    for col, col_type in [
+        ("fix_status", "TEXT"),
+        ("fix_session_id", "TEXT"),
+        ("fix_devin_url", "TEXT"),
+        ("pr_url", "TEXT"),
+    ]:
+        try:
+            conn.execute(f"ALTER TABLE devin_analyses ADD COLUMN {col} {col_type}")
+            conn.commit()
+        except Exception:
+            pass  # Column already exists
+
     conn.close()
 
 

@@ -8,6 +8,7 @@ const client = createClient<paths>()
 
 type Issue = components['schemas']['Issue']
 type AnalysisResult = components['schemas']['AnalysisResult']
+type FixStatusResult = components['schemas']['FixStatusResult']
 
 function Spinner() {
   return (
@@ -246,6 +247,200 @@ function DevinAnalysis({ githubUrl, issue }: { githubUrl: string; issue: Issue }
             {analysis.plan}
           </pre>
         )}
+        {analysis.plan && (
+          <FixWithDevin githubUrl={githubUrl} issue={issue} analysis={analysis} />
+        )}
+      </div>
+    )
+  }
+
+  return null
+}
+
+function FixWithDevin({
+  githubUrl,
+  issue,
+  analysis,
+}: {
+  githubUrl: string
+  issue: Issue
+  analysis: AnalysisResult
+}) {
+  const [triggered, setTriggered] = useState(false)
+  const queryClient = useQueryClient()
+
+  const fixStatusQuery = useQuery<FixStatusResult | null>({
+    queryKey: ['devin-fix', githubUrl, issue.issue_id],
+    queryFn: async () => {
+      const { data, error, response } = await client.GET('/api/devin/fix-status', {
+        params: { query: { github_url: githubUrl, issue_id: issue.issue_id } },
+      })
+      if (response.status === 404) return null
+      if (error) throw new Error(JSON.stringify(error))
+      return data
+    },
+    refetchInterval: (query) => {
+      const status = query.state.data?.fix_status
+      if (status === 'pending' || status === 'analyzing') return 5000
+      return false
+    },
+  })
+
+  const fixMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await client.POST('/api/devin/fix', {
+        body: {
+          github_url: githubUrl,
+          issue_id: issue.issue_id,
+          issue_title: issue.issue_title,
+          plan: analysis.plan!,
+        },
+      })
+      if (error) throw new Error(JSON.stringify(error))
+      return data
+    },
+    onSuccess: () => {
+      setTriggered(true)
+      queryClient.invalidateQueries({ queryKey: ['devin-fix', githubUrl, issue.issue_id] })
+    },
+  })
+
+  const fixStatus = fixStatusQuery.data
+  const isActive = fixStatus?.fix_status === 'pending' || fixStatus?.fix_status === 'analyzing'
+
+  // Not started
+  if (!fixStatus && !triggered) {
+    return (
+      <div style={{ marginTop: '1rem' }}>
+        <button
+          onClick={() => fixMutation.mutate()}
+          disabled={fixMutation.isPending}
+          style={{
+            padding: '0.5rem 1.25rem',
+            fontSize: '0.9rem',
+            cursor: fixMutation.isPending ? 'not-allowed' : 'pointer',
+            background: '#238636',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '6px',
+            opacity: fixMutation.isPending ? 0.7 : 1,
+          }}
+        >
+          {fixMutation.isPending ? 'Starting...' : 'Fix with Devin'}
+        </button>
+        {fixMutation.isError && (
+          <p style={{ color: '#d93025', fontSize: '0.85rem', margin: '0.5rem 0 0 0' }}>
+            Failed to start fix. Please try again.
+          </p>
+        )}
+      </div>
+    )
+  }
+
+  // In progress
+  if (isActive || (triggered && !fixStatus)) {
+    return (
+      <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', color: '#888' }}>
+        <InlineSpinner />
+        <span>Devin is implementing the fix...</span>
+        {fixStatus?.fix_devin_url && (
+          <a
+            href={fixStatus.fix_devin_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: '#646cff', marginLeft: '0.5rem' }}
+          >
+            Watch live
+          </a>
+        )}
+      </div>
+    )
+  }
+
+  // Failed
+  if (fixStatus?.fix_status === 'failed') {
+    return (
+      <div style={{ marginTop: '1rem' }}>
+        <span style={{ color: '#d93025', fontWeight: 600 }}>Fix failed</span>
+        <button
+          onClick={() => {
+            setTriggered(false)
+            fixMutation.mutate()
+          }}
+          style={{
+            marginLeft: '0.75rem',
+            padding: '0.4rem 1rem',
+            fontSize: '0.85rem',
+            cursor: 'pointer',
+            background: 'transparent',
+            color: '#646cff',
+            border: '1px solid #646cff',
+            borderRadius: '4px',
+          }}
+        >
+          Retry
+        </button>
+      </div>
+    )
+  }
+
+  // Completed
+  if (fixStatus?.fix_status === 'completed') {
+    return (
+      <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        {fixStatus.pr_url ? (
+          <a
+            href={fixStatus.pr_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              padding: '0.5rem 1.25rem',
+              fontSize: '0.9rem',
+              background: '#238636',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '6px',
+              textDecoration: 'none',
+              fontWeight: 600,
+            }}
+          >
+            View Pull Request
+          </a>
+        ) : (
+          <span style={{ color: '#888', fontSize: '0.85rem' }}>Fix completed (no PR URL returned)</span>
+        )}
+        {fixStatus.fix_devin_url && (
+          <a
+            href={fixStatus.fix_devin_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ fontSize: '0.8rem', color: '#646cff' }}
+          >
+            View session
+          </a>
+        )}
+        <button
+          onClick={() => {
+            setTriggered(false)
+            fixMutation.mutate()
+          }}
+          disabled={fixMutation.isPending}
+          style={{
+            padding: '0.3rem 0.8rem',
+            fontSize: '0.8rem',
+            cursor: fixMutation.isPending ? 'not-allowed' : 'pointer',
+            background: 'transparent',
+            color: '#646cff',
+            border: '1px solid #646cff',
+            borderRadius: '4px',
+            opacity: fixMutation.isPending ? 0.7 : 1,
+          }}
+        >
+          {fixMutation.isPending ? 'Starting...' : 'Re-run fix'}
+        </button>
       </div>
     )
   }

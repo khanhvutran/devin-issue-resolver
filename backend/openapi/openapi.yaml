@@ -92,6 +92,61 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /api/devin/fix:
+    post:
+      operationId: app.routes.devin.fix_issue
+      summary: Start Devin fix
+      description: Creates a Devin session to implement a fix and create a PR
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FixRequest"
+      responses:
+        "202":
+          description: Fix started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FixResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/devin/fix-status:
+    get:
+      operationId: app.routes.devin.get_fix_status
+      summary: Get fix status
+      description: Returns the current status of a Devin fix session
+      parameters:
+        - name: github_url
+          in: query
+          required: true
+          schema:
+            type: string
+          description: GitHub repository URL
+        - name: issue_id
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Issue number
+      responses:
+        "200":
+          description: Fix status found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FixStatusResult"
+        "404":
+          description: Fix not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
 components:
   schemas:
@@ -201,6 +256,60 @@ components:
           type: string
           nullable: true
         updated_at:
+          type: string
+          nullable: true
+    FixRequest:
+      type: object
+      required:
+        - github_url
+        - issue_id
+        - issue_title
+        - plan
+      properties:
+        github_url:
+          type: string
+          description: GitHub repository URL
+        issue_id:
+          type: integer
+          description: Issue number
+        issue_title:
+          type: string
+          description: Issue title
+        plan:
+          type: string
+          description: Implementation plan from analysis
+    FixResponse:
+      type: object
+      required:
+        - session_id
+        - status
+      properties:
+        session_id:
+          type: string
+        status:
+          type: string
+        devin_url:
+          type: string
+    FixStatusResult:
+      type: object
+      required:
+        - github_url
+        - issue_id
+      properties:
+        github_url:
+          type: string
+        issue_id:
+          type: integer
+        fix_status:
+          type: string
+          nullable: true
+        fix_session_id:
+          type: string
+          nullable: true
+        fix_devin_url:
+          type: string
+          nullable: true
+        pr_url:
           type: string
           nullable: true
     ErrorResponse:

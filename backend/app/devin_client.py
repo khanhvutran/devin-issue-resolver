@@ -174,3 +174,109 @@ def start_polling_thread(session_id, github_url, issue_id):
     )
     thread.start()
     return thread
+
+
+def build_fix_prompt(github_url, issue_id, issue_title, plan):
+    return (
+        f"You are tasked with fixing a GitHub issue.\n\n"
+        f"Repository: {github_url}\n"
+        f"Issue #{issue_id}: \"{issue_title}\"\n\n"
+        f"Implementation plan:\n{plan}\n\n"
+        "Instructions:\n"
+        "1. Clone the repository and create a new branch for the fix\n"
+        "2. Implement the fix following the plan above\n"
+        "3. Commit your changes and push the branch\n"
+        "4. Open a pull request that references issue #{issue_id}\n\n"
+        "IMPORTANT: Your final message MUST be ONLY valid JSON with no other text, "
+        "no markdown fences, and no explanation. Use this exact schema:\n"
+        '{"pr_url": "https://github.com/owner/repo/pull/123"}\n\n'
+        "Where pr_url is the URL of the pull request you created.\n"
+        "Return ONLY the JSON object as your final message. Nothing else."
+    )
+
+
+def parse_fix_response(messages):
+    if not messages:
+        return None
+
+    devin_text = ""
+    for msg in reversed(messages):
+        if msg.get("type") == "devin":
+            devin_text = msg.get("message", "")
+            break
+
+    if not devin_text:
+        devin_text = messages[-1].get("message", "")
+
+    if not devin_text:
+        return None
+
+    stripped = devin_text.strip()
+    if stripped.startswith("```"):
+        stripped = re.sub(r"^```(?:json)?\s*\n?", "", stripped)
+        stripped = re.sub(r"\n?```\s*$", "", stripped)
+
+    try:
+        data = json.loads(stripped)
+        return data.get("pr_url")
+    except (json.JSONDecodeError, AttributeError):
+        return None
+
+
+def poll_fix_session(session_id, github_url, issue_id):
+    try:
+        update_analysis(github_url, issue_id, fix_status="analyzing")
+
+        while True:
+            time.sleep(POLL_INTERVAL)
+
+            try:
+                session = get_session(session_id)
+            except requests.RequestException as e:
+                print(f"Error polling fix session {session_id}: {e}")
+                continue
+
+            status = session.get("status_enum", "")
+
+            if status in ("blocked", "finished"):
+                structured_output = session.get("structured_output") or {}
+                messages = structured_output.get("messages", [])
+                if not messages:
+                    messages = session.get("messages", [])
+
+                pr_url = parse_fix_response(messages)
+
+                update_analysis(
+                    github_url,
+                    issue_id,
+                    fix_status="completed",
+                    pr_url=pr_url,
+                )
+                terminate_session(session_id)
+                return
+
+            if status == "stopped":
+                update_analysis(
+                    github_url,
+                    issue_id,
+                    fix_status="failed",
+                )
+                return
+
+    except Exception as e:
+        print(f"Fix polling error for session {session_id}: {e}")
+        update_analysis(
+            github_url,
+            issue_id,
+            fix_status="failed",
+        )
+
+
+def start_fix_polling_thread(session_id, github_url, issue_id):
+    thread = threading.Thread(
+        target=poll_fix_session,
+        args=(session_id, github_url, issue_id),
+        daemon=True,
+    )
+    thread.start()
+    return thread

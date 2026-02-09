@@ -6,6 +6,7 @@ import type { paths, components } from '../api-schema'
 const client = createClient<paths>()
 
 type AnalysisResult = components['schemas']['AnalysisResult']
+type FixStatusResult = components['schemas']['FixStatusResult']
 
 function getConfidenceColor(score: number): string {
   if (score >= 8) return '#238636'
@@ -28,6 +29,76 @@ function InlineSpinner() {
       }}
     />
   )
+}
+
+function FixBadge({ githubUrl, issueId }: { githubUrl: string; issueId: number }) {
+  const { data: fixStatus } = useQuery<FixStatusResult | null>({
+    queryKey: ['devin-fix', githubUrl, issueId],
+    queryFn: async () => {
+      const { data, error, response } = await client.GET('/api/devin/fix-status', {
+        params: { query: { github_url: githubUrl, issue_id: issueId } },
+      })
+      if (response.status === 404) return null
+      if (error) throw new Error(JSON.stringify(error))
+      return data
+    },
+    refetchInterval: (query) => {
+      const status = query.state.data?.fix_status
+      if (status === 'pending' || status === 'analyzing') return 5000
+      return false
+    },
+  })
+
+  if (!fixStatus) return null
+
+  if (fixStatus.fix_status === 'pending' || fixStatus.fix_status === 'analyzing') {
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', color: '#888' }}>
+        <InlineSpinner /> Fixing...
+      </span>
+    )
+  }
+
+  if (fixStatus.fix_status === 'completed' && fixStatus.pr_url) {
+    return (
+      <a
+        href={fixStatus.pr_url}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          fontSize: '0.75rem',
+          padding: '2px 8px',
+          borderRadius: '12px',
+          fontWeight: 600,
+          background: '#8957e5',
+          color: '#fff',
+          textDecoration: 'none',
+        }}
+      >
+        PR
+      </a>
+    )
+  }
+
+  if (fixStatus.fix_status === 'failed') {
+    return (
+      <span
+        style={{
+          fontSize: '0.75rem',
+          padding: '2px 8px',
+          borderRadius: '12px',
+          fontWeight: 600,
+          background: '#d93025',
+          color: '#fff',
+        }}
+      >
+        Fix failed
+      </span>
+    )
+  }
+
+  return null
 }
 
 function AnalysisBadge({ githubUrl, issueId }: { githubUrl: string; issueId: number }) {
@@ -77,35 +148,41 @@ function AnalysisBadge({ githubUrl, issueId }: { githubUrl: string; issueId: num
 
   if (analysis.status === 'completed' && analysis.confidence_score != null) {
     return (
-      <span
-        style={{
-          fontSize: '0.75rem',
-          padding: '2px 8px',
-          borderRadius: '12px',
-          fontWeight: 600,
-          background: getConfidenceColor(analysis.confidence_score),
-          color: '#fff',
-        }}
-      >
-        Score: {analysis.confidence_score}/10
-      </span>
+      <>
+        <span
+          style={{
+            fontSize: '0.75rem',
+            padding: '2px 8px',
+            borderRadius: '12px',
+            fontWeight: 600,
+            background: getConfidenceColor(analysis.confidence_score),
+            color: '#fff',
+          }}
+        >
+          Score: {analysis.confidence_score}/10
+        </span>
+        <FixBadge githubUrl={githubUrl} issueId={issueId} />
+      </>
     )
   }
 
   if (analysis.status === 'completed') {
     return (
-      <span
-        style={{
-          fontSize: '0.75rem',
-          padding: '2px 8px',
-          borderRadius: '12px',
-          fontWeight: 600,
-          background: '#238636',
-          color: '#fff',
-        }}
-      >
-        Analyzed
-      </span>
+      <>
+        <span
+          style={{
+            fontSize: '0.75rem',
+            padding: '2px 8px',
+            borderRadius: '12px',
+            fontWeight: 600,
+            background: '#238636',
+            color: '#fff',
+          }}
+        >
+          Analyzed
+        </span>
+        <FixBadge githubUrl={githubUrl} issueId={issueId} />
+      </>
     )
   }
 

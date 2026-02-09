@@ -84,6 +84,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/devin/fix": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Devin fix
+         * @description Creates a Devin session to implement a fix and create a PR
+         */
+        post: operations["app.routes.devin.fix_issue"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/devin/fix-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get fix status
+         * @description Returns the current status of a Devin fix session
+         */
+        get: operations["app.routes.devin.get_fix_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -130,6 +170,29 @@ export interface components {
             devin_url?: string | null;
             created_at?: string | null;
             updated_at?: string | null;
+        };
+        FixRequest: {
+            /** @description GitHub repository URL */
+            github_url: string;
+            /** @description Issue number */
+            issue_id: number;
+            /** @description Issue title */
+            issue_title: string;
+            /** @description Implementation plan from analysis */
+            plan: string;
+        };
+        FixResponse: {
+            session_id: string;
+            status: string;
+            devin_url?: string;
+        };
+        FixStatusResult: {
+            github_url: string;
+            issue_id: number;
+            fix_status?: string | null;
+            fix_session_id?: string | null;
+            fix_devin_url?: string | null;
+            pr_url?: string | null;
         };
         ErrorResponse: {
             error: string;
@@ -243,6 +306,73 @@ export interface operations {
                 };
             };
             /** @description Analysis not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    "app.routes.devin.fix_issue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FixRequest"];
+            };
+        };
+        responses: {
+            /** @description Fix started */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FixResponse"];
+                };
+            };
+            /** @description Server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    "app.routes.devin.get_fix_status": {
+        parameters: {
+            query: {
+                /** @description GitHub repository URL */
+                github_url: string;
+                /** @description Issue number */
+                issue_id: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Fix status found */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FixStatusResult"];
+                };
+            };
+            /** @description Fix not found */
             404: {
                 headers: {
                     [name: string]: unknown;
