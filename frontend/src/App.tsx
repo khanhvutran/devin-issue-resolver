@@ -28,7 +28,7 @@ export function App() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '2rem' }}>
       <MarkGithubIcon size={48} />
-      <Heading as="h1" style={{ marginTop: '1rem', marginBottom: '0.25rem' }}>Devin</Heading>
+      <Heading as="h1" style={{ marginTop: '1rem', marginBottom: '0.25rem' }}>Devin: The Quicker Fixer Upper</Heading>
       <Text as="p" size="medium" style={{ color: 'var(--fgColor-muted)', marginBottom: '2rem' }}>
         Enter a GitHub repository URL to browse its issues
       </Text>
