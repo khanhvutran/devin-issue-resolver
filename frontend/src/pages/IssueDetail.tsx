@@ -1,49 +1,21 @@
 import { useSearchParams, Link } from 'react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import {
+  Heading, Text, Button, Flash, Label, StateLabel,
+  Avatar, Breadcrumbs,
+  Link as PrimerLink,
+} from '@primer/react'
+import { ArrowLeftIcon, CommentIcon, GitPullRequestIcon } from '@primer/octicons-react'
 import createClient from 'openapi-fetch'
 import type { paths, components } from '../api-schema'
 
 const client = createClient<paths>()
 
 type Issue = components['schemas']['Issue']
+type IssuesResponse = components['schemas']['IssuesResponse']
 type AnalysisResult = components['schemas']['AnalysisResult']
 type FixStatusResult = components['schemas']['FixStatusResult']
-
-function Spinner() {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem 0' }}>
-      <div
-        style={{
-          width: '36px',
-          height: '36px',
-          border: '3px solid #333',
-          borderTopColor: '#646cff',
-          borderRadius: '50%',
-          animation: 'spin 0.8s linear infinite',
-        }}
-      />
-    </div>
-  )
-}
-
-function InlineSpinner() {
-  return (
-    <div
-      style={{
-        display: 'inline-block',
-        width: '16px',
-        height: '16px',
-        border: '2px solid #555',
-        borderTopColor: '#646cff',
-        borderRadius: '50%',
-        animation: 'spin 0.8s linear infinite',
-        verticalAlign: 'middle',
-        marginRight: '0.5rem',
-      }}
-    />
-  )
-}
 
 function getConfidenceColor(score: number): string {
   if (score >= 8) return '#238636'
@@ -63,7 +35,16 @@ function formatDate(isoDate: string): string {
   }
 }
 
-function DevinAnalysis({ githubUrl, issue }: { githubUrl: string; issue: Issue }) {
+function extractRepoName(url: string): string {
+  try {
+    const parsed = new URL(url)
+    const parts = parsed.pathname.split('/').filter(Boolean)
+    if (parts.length >= 2) return `${parts[0]}/${parts[1]}`
+  } catch { /* ignore */ }
+  return url
+}
+
+function DevinAnalysis({ githubUrl, issue, canPush }: { githubUrl: string; issue: Issue; canPush: boolean }) {
   const [triggered, setTriggered] = useState(false)
   const queryClient = useQueryClient()
 
@@ -119,184 +100,126 @@ function DevinAnalysis({ githubUrl, issue }: { githubUrl: string; issue: Issue }
   const analysis = analysisQuery.data
   const isActive = analysis?.status === 'pending' || analysis?.status === 'analyzing'
 
+  // No analysis yet
   if (!analysis && !triggered) {
     return (
       <div>
-        <button
-          onClick={() => analyzeMutation.mutate()}
-          disabled={analyzeMutation.isPending}
-          style={{
-            padding: '0.5rem 1.25rem',
-            fontSize: '0.9rem',
-            cursor: analyzeMutation.isPending ? 'not-allowed' : 'pointer',
-            background: '#646cff',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '6px',
-            opacity: analyzeMutation.isPending ? 0.7 : 1,
-          }}
-        >
+        <Button variant="primary" onClick={() => analyzeMutation.mutate()} disabled={analyzeMutation.isPending}>
           {analyzeMutation.isPending ? 'Starting...' : 'Analyze with Devin'}
-        </button>
+        </Button>
         {analyzeMutation.isError && (
-          <p style={{ color: '#d93025', fontSize: '0.85rem', margin: '0.5rem 0 0 0' }}>
-            Failed to start analysis. Please try again.
-          </p>
+          <Flash variant="danger" style={{ marginTop: '0.5rem' }}>Failed to start analysis. Please try again.</Flash>
         )}
       </div>
     )
   }
 
+  // In progress
   if (isActive || (triggered && !analysis)) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', color: '#888' }}>
-        <InlineSpinner />
-        <span>Devin is analyzing this issue...</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--fgColor-muted)' }}>
+        <span className="spinner spinner--small" />
+        <Text>Devin is analyzing this issue...</Text>
         {analysis?.devin_url && (
-          <a
-            href={analysis.devin_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: '#646cff', marginLeft: '0.5rem' }}
-          >
+          <PrimerLink href={analysis.devin_url} target="_blank" rel="noopener noreferrer">
             Watch live
-          </a>
+          </PrimerLink>
         )}
       </div>
     )
   }
 
+  // Failed
   if (analysis?.status === 'failed') {
     return (
-      <div>
-        <span style={{ color: '#d93025', fontWeight: 600 }}>Analysis failed</span>
-        {analysis.plan && (
-          <p style={{ color: '#888', margin: '0.25rem 0 0.5rem 0', fontSize: '0.85rem' }}>
-            {analysis.plan}
-          </p>
-        )}
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button
-            onClick={() => {
-              setTriggered(false)
-              analyzeMutation.mutate()
-            }}
-            style={{
-              padding: '0.4rem 1rem',
-              fontSize: '0.85rem',
-              cursor: 'pointer',
-              background: 'transparent',
-              color: '#646cff',
-              border: '1px solid #646cff',
-              borderRadius: '4px',
-            }}
-          >
-            Retry
-          </button>
-          <button
-            onClick={() => deleteMutation.mutate()}
-            disabled={deleteMutation.isPending}
-            style={{
-              padding: '0.4rem 1rem',
-              fontSize: '0.85rem',
-              cursor: deleteMutation.isPending ? 'not-allowed' : 'pointer',
-              background: 'transparent',
-              color: '#d93025',
-              border: '1px solid #d93025',
-              borderRadius: '4px',
-              opacity: deleteMutation.isPending ? 0.7 : 1,
-            }}
-          >
-            {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
-          </button>
+      <Flash variant="danger">
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
+          <div>
+            <Text weight="semibold">Analysis failed</Text>
+            {analysis.plan && (
+              <p style={{ marginTop: '0.25rem', marginBottom: 0, fontSize: '0.85rem', color: 'var(--fgColor-muted)' }}>{analysis.plan}</p>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+            <Button size="small" onClick={() => { setTriggered(false); analyzeMutation.mutate() }}>Retry</Button>
+            <Button size="small" variant="danger" onClick={() => deleteMutation.mutate()} disabled={deleteMutation.isPending}>
+              {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+            </Button>
+          </div>
         </div>
-      </div>
+      </Flash>
     )
   }
 
+  // Completed
   if (analysis?.status === 'completed') {
     return (
       <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-          {analysis.confidence_score != null && (
-            <span
-              style={{
-                fontSize: '0.8rem',
-                padding: '3px 10px',
-                borderRadius: '12px',
-                fontWeight: 600,
-                background: getConfidenceColor(analysis.confidence_score),
-                color: '#fff',
-              }}
-            >
-              Confidence: {analysis.confidence_score}/10
-            </span>
-          )}
-          {analysis.devin_url && (
-            <a
-              href={analysis.devin_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ fontSize: '0.8rem', color: '#646cff' }}
-            >
-              View session
-            </a>
-          )}
-          <button
-            onClick={() => {
-              setTriggered(false)
-              analyzeMutation.mutate()
-            }}
-            disabled={analyzeMutation.isPending}
-            style={{
-              padding: '0.3rem 0.8rem',
-              fontSize: '0.8rem',
-              cursor: analyzeMutation.isPending ? 'not-allowed' : 'pointer',
-              background: 'transparent',
-              color: '#646cff',
-              border: '1px solid #646cff',
-              borderRadius: '4px',
-              opacity: analyzeMutation.isPending ? 0.7 : 1,
-            }}
-          >
-            {analyzeMutation.isPending ? 'Starting...' : 'Re-analyze'}
-          </button>
-          <button
-            onClick={() => deleteMutation.mutate()}
-            disabled={deleteMutation.isPending}
-            style={{
-              padding: '0.3rem 0.8rem',
-              fontSize: '0.8rem',
-              cursor: deleteMutation.isPending ? 'not-allowed' : 'pointer',
-              background: 'transparent',
-              color: '#d93025',
-              border: '1px solid #d93025',
-              borderRadius: '4px',
-              opacity: deleteMutation.isPending ? 0.7 : 1,
-            }}
-          >
-            {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
-          </button>
-        </div>
-        {analysis.plan && (
-          <pre
-            style={{
-              background: '#1a1a2e',
-              border: '1px solid #333',
-              borderRadius: '6px',
+        {/* Analysis panel */}
+        <div style={{
+          border: '1px solid var(--borderColor-default)',
+          borderRadius: '6px',
+          overflow: 'hidden',
+        }}>
+          {/* Panel header */}
+          <div style={{
+            background: 'var(--bgColor-muted)',
+            padding: '0.75rem 1rem',
+            borderBottom: '1px solid var(--borderColor-default)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '0.5rem',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Text weight="semibold">Devin Recommendation</Text>
+              {analysis.confidence_score != null && (
+                <span style={{
+                  fontSize: '0.75rem',
+                  padding: '2px 8px',
+                  borderRadius: '2em',
+                  fontWeight: 600,
+                  background: getConfidenceColor(analysis.confidence_score),
+                  color: '#fff',
+                }}>
+                  Confidence: {analysis.confidence_score}/10
+                </span>
+              )}
+              {analysis.devin_url && (
+                <PrimerLink href={analysis.devin_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.85rem' }}>
+                  View session
+                </PrimerLink>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <Button size="small" onClick={() => { setTriggered(false); analyzeMutation.mutate() }} disabled={analyzeMutation.isPending}>
+                {analyzeMutation.isPending ? 'Starting...' : 'Re-analyze'}
+              </Button>
+              <Button size="small" variant="danger" onClick={() => deleteMutation.mutate()} disabled={deleteMutation.isPending}>
+                {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+              </Button>
+            </div>
+          </div>
+
+          {/* Plan content */}
+          {analysis.plan && (
+            <div style={{
               padding: '1rem',
-              fontSize: '0.85rem',
-              color: '#ccc',
+              fontSize: '0.9rem',
               whiteSpace: 'pre-wrap',
               wordBreak: 'break-word',
-              margin: 0,
-            }}
-          >
-            {analysis.plan}
-          </pre>
-        )}
+              fontFamily: 'var(--fontStack-monospace)',
+              lineHeight: 1.6,
+            }}>
+              {analysis.plan}
+            </div>
+          )}
+        </div>
+
+        {/* Fix section */}
         {analysis.plan && (
-          <FixWithDevin githubUrl={githubUrl} issue={issue} analysis={analysis} />
+          <FixWithDevin githubUrl={githubUrl} issue={issue} analysis={analysis} canPush={canPush} />
         )}
       </div>
     )
@@ -309,10 +232,12 @@ function FixWithDevin({
   githubUrl,
   issue,
   analysis,
+  canPush,
 }: {
   githubUrl: string
   issue: Issue
   analysis: AnalysisResult
+  canPush: boolean
 }) {
   const [triggered, setTriggered] = useState(false)
   const queryClient = useQueryClient()
@@ -358,28 +283,25 @@ function FixWithDevin({
 
   // Not started
   if (!fixStatus && !triggered) {
+    if (!canPush) {
+      return (
+        <Flash variant="warning" style={{ marginTop: '1rem' }}>
+          Devin can't create a pull request for this repository. Your GitHub token doesn't have write access.
+        </Flash>
+      )
+    }
     return (
       <div style={{ marginTop: '1rem' }}>
-        <button
+        <Button
+          variant="primary"
           onClick={() => fixMutation.mutate()}
           disabled={fixMutation.isPending}
-          style={{
-            padding: '0.5rem 1.25rem',
-            fontSize: '0.9rem',
-            cursor: fixMutation.isPending ? 'not-allowed' : 'pointer',
-            background: '#238636',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '6px',
-            opacity: fixMutation.isPending ? 0.7 : 1,
-          }}
+          style={{ backgroundColor: 'var(--bgColor-success-emphasis)' }}
         >
           {fixMutation.isPending ? 'Starting...' : 'Fix with Devin'}
-        </button>
+        </Button>
         {fixMutation.isError && (
-          <p style={{ color: '#d93025', fontSize: '0.85rem', margin: '0.5rem 0 0 0' }}>
-            Failed to start fix. Please try again.
-          </p>
+          <Flash variant="danger" style={{ marginTop: '0.5rem' }}>Failed to start fix. Please try again.</Flash>
         )}
       </div>
     )
@@ -388,18 +310,13 @@ function FixWithDevin({
   // In progress
   if (isActive || (triggered && !fixStatus)) {
     return (
-      <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', color: '#888' }}>
-        <InlineSpinner />
-        <span>Devin is implementing the fix...</span>
+      <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--fgColor-muted)' }}>
+        <span className="spinner spinner--small" />
+        <Text>Devin is implementing the fix...</Text>
         {fixStatus?.fix_devin_url && (
-          <a
-            href={fixStatus.fix_devin_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: '#646cff', marginLeft: '0.5rem' }}
-          >
+          <PrimerLink href={fixStatus.fix_devin_url} target="_blank" rel="noopener noreferrer">
             Watch live
-          </a>
+          </PrimerLink>
         )}
       </div>
     )
@@ -408,87 +325,70 @@ function FixWithDevin({
   // Failed
   if (fixStatus?.fix_status === 'failed') {
     return (
-      <div style={{ marginTop: '1rem' }}>
-        <span style={{ color: '#d93025', fontWeight: 600 }}>Fix failed</span>
-        <button
-          onClick={() => {
-            setTriggered(false)
-            fixMutation.mutate()
-          }}
-          style={{
-            marginLeft: '0.75rem',
-            padding: '0.4rem 1rem',
-            fontSize: '0.85rem',
-            cursor: 'pointer',
-            background: 'transparent',
-            color: '#646cff',
-            border: '1px solid #646cff',
-            borderRadius: '4px',
-          }}
-        >
-          Retry
-        </button>
+      <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <Label variant="danger">Fix failed</Label>
+        <Button size="small" onClick={() => { setTriggered(false); fixMutation.mutate() }}>Retry</Button>
       </div>
     )
   }
 
-  // Completed
+  // Completed - PR view styled like GitHub
   if (fixStatus?.fix_status === 'completed') {
     return (
-      <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-        {fixStatus.pr_url ? (
-          <a
-            href={fixStatus.pr_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              padding: '0.5rem 1.25rem',
-              fontSize: '0.9rem',
-              background: '#238636',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '6px',
-              textDecoration: 'none',
-              fontWeight: 600,
-            }}
-          >
-            View Pull Request
-          </a>
-        ) : (
-          <span style={{ color: '#888', fontSize: '0.85rem' }}>Fix completed (no PR URL returned)</span>
-        )}
-        {fixStatus.fix_devin_url && (
-          <a
-            href={fixStatus.fix_devin_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ fontSize: '0.8rem', color: '#646cff' }}
-          >
-            View session
-          </a>
-        )}
-        <button
-          onClick={() => {
-            setTriggered(false)
-            fixMutation.mutate()
-          }}
-          disabled={fixMutation.isPending}
-          style={{
-            padding: '0.3rem 0.8rem',
-            fontSize: '0.8rem',
-            cursor: fixMutation.isPending ? 'not-allowed' : 'pointer',
-            background: 'transparent',
-            color: '#646cff',
-            border: '1px solid #646cff',
-            borderRadius: '4px',
-            opacity: fixMutation.isPending ? 0.7 : 1,
-          }}
-        >
-          {fixMutation.isPending ? 'Starting...' : 'Re-run fix'}
-        </button>
+      <div style={{
+        marginTop: '1rem',
+        border: '1px solid var(--borderColor-success-muted, #238636)',
+        borderRadius: '6px',
+        overflow: 'hidden',
+      }}>
+        {/* PR header bar */}
+        <div style={{
+          background: 'var(--bgColor-success-muted, rgba(35, 134, 54, 0.15))',
+          padding: '0.75rem 1rem',
+          borderBottom: '1px solid var(--borderColor-success-muted, #238636)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+        }}>
+          <GitPullRequestIcon size={16} />
+          <Text weight="semibold">Pull Request</Text>
+          <StateLabel status="pullOpened">Open</StateLabel>
+        </div>
+        {/* PR body */}
+        <div style={{
+          padding: '1rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '0.5rem',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            {fixStatus.pr_url ? (
+              <Button
+                as="a"
+                href={fixStatus.pr_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                variant="primary"
+                leadingVisual={GitPullRequestIcon}
+                style={{ backgroundColor: 'var(--bgColor-success-emphasis)' }}
+              >
+                View Pull Request
+              </Button>
+            ) : (
+              <Text style={{ color: 'var(--fgColor-muted)' }}>Fix completed (no PR URL returned)</Text>
+            )}
+            {fixStatus.fix_devin_url && (
+              <PrimerLink href={fixStatus.fix_devin_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.85rem' }}>
+                View Devin session
+              </PrimerLink>
+            )}
+          </div>
+          <Button size="small" onClick={() => { setTriggered(false); fixMutation.mutate() }} disabled={fixMutation.isPending}>
+            {fixMutation.isPending ? 'Starting...' : 'Re-run fix'}
+          </Button>
+        </div>
       </div>
     )
   }
@@ -500,85 +400,108 @@ export function IssueDetail() {
   const [searchParams] = useSearchParams()
   const githubUrl = searchParams.get('github_url') ?? ''
   const issueId = Number(searchParams.get('issue_id'))
+  const repoName = extractRepoName(githubUrl)
 
-  const { data: issues, isLoading, error } = useQuery<Issue[]>({
+  const { data: issuesResponse, isLoading, error } = useQuery<IssuesResponse>({
     queryKey: ['issues', githubUrl],
     queryFn: async () => {
-      const { data, error } = await client.GET('/api/issues', {
+      const { data, error, response } = await client.GET('/api/issues', {
         params: { query: { github_url: githubUrl } },
       })
-      if (error) throw new Error(JSON.stringify(error))
+      if (error) {
+        if (response.status === 400) {
+          throw new Error(error.error || "The URL provided is not a valid GitHub repository URL.")
+        }
+        if (response.status === 403) {
+          throw new Error(error.error || "Cannot access this repository with the provided token.")
+        }
+        throw new Error(error.error || "Failed to load issues.")
+      }
       return data
     },
     enabled: !!githubUrl,
   })
 
-  const issue = issues?.find(i => i.issue_id === issueId)
+  const issue = issuesResponse?.issues?.find(i => i.issue_id === issueId)
+  const canPush = issuesResponse?.can_push ?? true
 
   return (
-    <div style={{ maxWidth: '900px', margin: '0 auto', padding: '2rem' }}>
-      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+    <div style={{ maxWidth: 1400, margin: '0 auto', padding: '2rem clamp(1rem, 3vw, 2.5rem)' }}>
+      {/* Navigation */}
+      <div style={{ marginBottom: '1.5rem' }}>
+        <Breadcrumbs>
+          <Breadcrumbs.Item as={Link} to="/">Home</Breadcrumbs.Item>
+          <Breadcrumbs.Item as={Link} to={`/issues?github_url=${encodeURIComponent(githubUrl)}`}>
+            {repoName}
+          </Breadcrumbs.Item>
+          <Breadcrumbs.Item selected>#{issueId}</Breadcrumbs.Item>
+        </Breadcrumbs>
+        <div style={{ marginTop: '0.5rem' }}>
+          <Button
+            as={Link}
+            to={`/issues?github_url=${encodeURIComponent(githubUrl)}`}
+            variant="default"
+            leadingVisual={ArrowLeftIcon}
+          >
+            Back to issues
+          </Button>
+        </div>
+      </div>
 
-      <Link
-        to={`/issues?github_url=${encodeURIComponent(githubUrl)}`}
-        style={{ fontSize: '0.9rem' }}
-      >
-        &larr; Back to issues
-      </Link>
-
-      {isLoading && <Spinner />}
+      {isLoading && (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem 0' }}>
+          <span className="spinner spinner--large" />
+        </div>
+      )}
 
       {error && (
-        <p style={{ color: '#d93025', marginTop: '1rem' }}>
+        <Flash variant="danger" style={{ marginTop: '1rem' }}>
           Failed to load issue: {error.message}
-        </p>
+        </Flash>
       )}
 
       {!isLoading && !error && !issue && (
-        <p style={{ color: '#888', marginTop: '1rem' }}>Issue not found.</p>
+        <Flash style={{ marginTop: '1rem' }}>Issue not found.</Flash>
       )}
 
       {issue && (
         <>
-          {/* Header */}
-          <div style={{ marginTop: '1rem', marginBottom: '1.5rem' }}>
+          {/* Issue header */}
+          <div style={{
+            marginBottom: '2rem',
+            paddingBottom: '1rem',
+            borderBottom: '1px solid var(--borderColor-default)',
+          }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-              <span style={{ color: '#888', fontWeight: 500, fontSize: '1.1rem' }}>#{issue.issue_id}</span>
-              <span
-                style={{
-                  fontSize: '0.75rem',
-                  padding: '2px 8px',
-                  borderRadius: '12px',
-                  fontWeight: 600,
-                  background: issue.state === 'open' ? '#238636' : '#8957e5',
-                  color: '#fff',
-                }}
-              >
-                {issue.state}
+              <StateLabel status={issue.state === 'open' ? 'issueOpened' : 'issueClosed'}>
+                {issue.state === 'open' ? 'Open' : 'Closed'}
+              </StateLabel>
+              <Text style={{ color: 'var(--fgColor-muted)' }}>#{issue.issue_id}</Text>
+            </div>
+
+            <Heading as="h1" style={{ marginBottom: '0.75rem' }}>{issue.issue_title}</Heading>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem', color: 'var(--fgColor-muted)', marginBottom: '0.5rem' }}>
+              {issue.author_avatar && (
+                <Avatar src={issue.author_avatar} alt={issue.author} size={20} />
+              )}
+              <Text weight="semibold">{issue.author}</Text>
+              <span>opened {formatDate(issue.created_at)}</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                <CommentIcon size={14} />
+                {issue.comment_count} comment{issue.comment_count !== 1 ? 's' : ''}
               </span>
             </div>
-            <h1 style={{ margin: '0 0 0.75rem 0', fontSize: '1.5rem' }}>{issue.issue_title}</h1>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem', color: '#888' }}>
-              {issue.author_avatar && (
-                <img
-                  src={issue.author_avatar}
-                  alt={issue.author}
-                  style={{ width: '20px', height: '20px', borderRadius: '50%' }}
-                />
-              )}
-              <span>{issue.author}</span>
-              <span>opened {formatDate(issue.created_at)}</span>
-              <span>{issue.comment_count} comment{issue.comment_count !== 1 ? 's' : ''}</span>
-            </div>
+
             {issue.labels && issue.labels.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.75rem' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
                 {issue.labels.map(label => (
                   <span
                     key={label.name}
                     style={{
                       fontSize: '0.75rem',
                       padding: '2px 8px',
-                      borderRadius: '12px',
+                      borderRadius: '2em',
                       fontWeight: 500,
                       background: `#${label.color}`,
                       color: parseInt(label.color, 16) > 0x7fffff ? '#000' : '#fff',
@@ -594,29 +517,30 @@ export function IssueDetail() {
           {/* Description */}
           {issue.body && (
             <div style={{ marginBottom: '2rem' }}>
-              <h2 style={{ fontSize: '1.1rem', marginBottom: '0.75rem', color: '#ccc' }}>Description</h2>
-              <pre
-                style={{
-                  background: '#1a1a2e',
-                  border: '1px solid #333',
-                  borderRadius: '6px',
-                  padding: '1rem',
-                  fontSize: '0.85rem',
-                  color: '#ccc',
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                  margin: 0,
-                }}
-              >
+              <Heading as="h2" variant="small" style={{ marginBottom: '0.75rem', color: 'var(--fgColor-muted)' }}>Description</Heading>
+              <div style={{
+                background: 'var(--bgColor-muted)',
+                border: '1px solid var(--borderColor-default)',
+                borderRadius: '6px',
+                padding: '1rem',
+                fontSize: '0.9rem',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                lineHeight: 1.6,
+              }}>
                 {issue.body}
-              </pre>
+              </div>
             </div>
           )}
 
           {/* Analysis */}
-          <div>
-            <h2 style={{ fontSize: '1.1rem', marginBottom: '0.75rem', color: '#ccc' }}>Devin Analysis</h2>
-            <DevinAnalysis githubUrl={githubUrl} issue={issue} />
+          <div style={{
+            border: '1px solid var(--borderColor-default)',
+            borderRadius: '6px',
+            padding: '1.25rem',
+          }}>
+            <Heading as="h2" variant="small" style={{ marginBottom: '0.75rem', color: 'var(--fgColor-muted)' }}>Devin Analysis</Heading>
+            <DevinAnalysis githubUrl={githubUrl} issue={issue} canPush={canPush} />
           </div>
         </>
       )}

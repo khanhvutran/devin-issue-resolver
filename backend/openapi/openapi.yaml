@@ -34,9 +34,19 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Issue"
+                $ref: "#/components/schemas/IssuesResponse"
+        "400":
+          description: Invalid GitHub URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Cannot access repository
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /api/devin/analyze:
     post:
       operationId: app.routes.devin.analyze
@@ -186,6 +196,19 @@ components:
           type: string
         status:
           type: string
+    IssuesResponse:
+      type: object
+      required:
+        - issues
+        - can_push
+      properties:
+        issues:
+          type: array
+          items:
+            $ref: "#/components/schemas/Issue"
+        can_push:
+          type: boolean
+          description: Whether the token has push access to create PRs
     Issue:
       type: object
       required:

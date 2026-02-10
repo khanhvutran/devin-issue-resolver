@@ -36,7 +36,11 @@
       "Bash(cat:*)",
       "Bash(/Users/khanhtran/devin/backend/venv/bin/pip show connexion)",
       "Bash(export PATH=\"/opt/homebrew/bin:$PATH\")",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "WebFetch(domain:primer.style)",
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(node -e:*)",
+      "Bash(npx vite build:*)"
     ]
   }
 }

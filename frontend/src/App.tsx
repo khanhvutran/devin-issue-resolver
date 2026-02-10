@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
-import './App.css'
+import { Heading, Text, TextInput, Button, FormControl } from '@primer/react'
+import { MarkGithubIcon } from '@primer/octicons-react'
 
 const GITHUB_URL_RE = /^https?:\/\/github\.com\/[^/]+\/[^/]+/
 
@@ -25,37 +26,43 @@ export function App() {
   }
 
   return (
-    <div className="App">
-      <h1>Devin</h1>
-      <p style={{ marginBottom: '2rem', color: '#888' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '2rem' }}>
+      <MarkGithubIcon size={48} />
+      <Heading as="h1" style={{ marginTop: '1rem', marginBottom: '0.25rem' }}>Devin</Heading>
+      <Text as="p" size="medium" style={{ color: 'var(--fgColor-muted)', marginBottom: '2rem' }}>
         Enter a GitHub repository URL to browse its issues
-      </p>
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
-        <input
-          type="text"
-          value={githubUrl}
-          onChange={e => { setGithubUrl(e.target.value); setValidationError('') }}
-          placeholder="https://github.com/owner/repo"
-          style={{
-            width: '100%',
-            maxWidth: '500px',
-            padding: '0.8rem 1rem',
-            fontSize: '1.1rem',
-            borderRadius: '8px',
-            border: `1px solid ${validationError ? '#d93025' : '#444'}`,
-            background: 'inherit',
-            color: 'inherit',
-          }}
-        />
-        {validationError && (
-          <p style={{ color: '#d93025', margin: 0, fontSize: '0.9rem' }}>
-            {validationError}
-          </p>
-        )}
-        <button type="submit" style={{ padding: '0.8rem 2rem', fontSize: '1.1rem' }}>
-          Browse Issues
-        </button>
-      </form>
+      </Text>
+      <div style={{
+        width: '100%',
+        maxWidth: '500px',
+        border: '1px solid var(--borderColor-default)',
+        borderRadius: '6px',
+        padding: '1.5rem',
+      }}>
+        <form
+          onSubmit={handleSubmit}
+          style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
+        >
+          <FormControl>
+            <FormControl.Label visuallyHidden>GitHub URL</FormControl.Label>
+            <TextInput
+              value={githubUrl}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setGithubUrl(e.target.value); setValidationError('') }}
+              placeholder="https://github.com/owner/repo"
+              size="large"
+              block
+              validationStatus={validationError ? 'error' : undefined}
+              aria-label="GitHub repository URL"
+            />
+            {validationError && (
+              <FormControl.Validation variant="error">{validationError}</FormControl.Validation>
+            )}
+          </FormControl>
+          <Button variant="primary" size="large" type="submit" block>
+            Browse Issues
+          </Button>
+        </form>
+      </div>
     </div>
   )
 }

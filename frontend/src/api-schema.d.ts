@@ -136,6 +136,11 @@ export interface components {
             message: string;
             status: string;
         };
+        IssuesResponse: {
+            issues: components["schemas"]["Issue"][];
+            /** @description Whether the token has push access to create PRs */
+            can_push: boolean;
+        };
         Issue: {
             issue_id: number;
             issue_title: string;
@@ -248,7 +253,25 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Issue"][];
+                    "application/json": components["schemas"]["IssuesResponse"];
+                };
+            };
+            /** @description Invalid GitHub URL */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Cannot access repository */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
