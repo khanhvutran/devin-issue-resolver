@@ -1,11 +1,11 @@
-import { useState, type FormEvent } from 'react'
+import React, { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { Heading, Text, TextInput, Button, FormControl } from '@primer/react'
 import { MarkGithubIcon } from '@primer/octicons-react'
 
 const GITHUB_URL_RE = /^https?:\/\/github\.com\/[^/]+\/[^/]+/
 
-export function App() {
+export const App = React.memo(function AppFn() {
   const [githubUrl, setGithubUrl] = useState('')
   const [validationError, setValidationError] = useState('')
   const navigate = useNavigate()
@@ -65,4 +65,4 @@ export function App() {
       </div>
     </div>
   )
-}
+})

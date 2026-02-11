@@ -1,137 +1,18 @@
+import React from 'react'
 import { useSearchParams, Link } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import {
-  Heading, Text, Button, Flash, Label, StateLabel,
-  Avatar, Breadcrumbs, Link as PrimerLink,
+  Heading, Text, Button, Flash, StateLabel,
+  Avatar, Breadcrumbs,
 } from '@primer/react'
 import { ArrowLeftIcon, CommentIcon, IssueOpenedIcon } from '@primer/octicons-react'
 import createClient from 'openapi-fetch'
 import type { paths, components } from '../api-schema'
+import { AnalysisBadge } from './AnalysisBadge'
 
 const client = createClient<paths>()
 
 type IssuesResponse = components['schemas']['IssuesResponse']
-type AnalysisResult = components['schemas']['AnalysisResult']
-type FixStatusResult = components['schemas']['FixStatusResult']
-
-function getConfidenceColor(score: number): string {
-  if (score >= 8) return '#238636'
-  if (score >= 5) return '#d29922'
-  return '#d93025'
-}
-
-function FixBadge({ githubUrl, issueId }: { githubUrl: string; issueId: number }) {
-  const { data: fixStatus } = useQuery<FixStatusResult | null>({
-    queryKey: ['devin-fix', githubUrl, issueId],
-    queryFn: async () => {
-      const { data, error, response } = await client.GET('/api/devin/fix-status', {
-        params: { query: { github_url: githubUrl, issue_id: issueId } },
-      })
-      if (response.status === 404) return null
-      if (error) throw new Error(JSON.stringify(error))
-      return data
-    },
-    refetchInterval: (query) => {
-      const status = query.state.data?.fix_status
-      if (status === 'pending' || status === 'analyzing') return 5000
-      return false
-    },
-  })
-
-  if (!fixStatus) return null
-
-  if (fixStatus.fix_status === 'pending' || fixStatus.fix_status === 'analyzing') {
-    return (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-        <span className="spinner spinner--small" /> <Text size="small" style={{ color: 'var(--fgColor-muted)' }}>Fixing...</Text>
-      </span>
-    )
-  }
-
-  if (fixStatus.fix_status === 'completed' && fixStatus.pr_url) {
-    return (
-      <Label variant="done">
-        <PrimerLink
-          href={fixStatus.pr_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e: React.MouseEvent) => e.stopPropagation()}
-          style={{ color: 'inherit', textDecoration: 'none' }}
-        >
-          PR
-        </PrimerLink>
-      </Label>
-    )
-  }
-
-  if (fixStatus.fix_status === 'failed') {
-    return <Label variant="danger">Fix failed</Label>
-  }
-
-  return null
-}
-
-function AnalysisBadge({ githubUrl, issueId }: { githubUrl: string; issueId: number }) {
-  const { data: analysis } = useQuery<AnalysisResult | null>({
-    queryKey: ['devin-analysis', githubUrl, issueId],
-    queryFn: async () => {
-      const { data, error, response } = await client.GET('/api/devin/analysis', {
-        params: { query: { github_url: githubUrl, issue_id: issueId } },
-      })
-      if (response.status === 404) return null
-      if (error) throw new Error(JSON.stringify(error))
-      return data
-    },
-    refetchInterval: (query) => {
-      const status = query.state.data?.status
-      if (status === 'pending' || status === 'analyzing') return 5000
-      return false
-    },
-  })
-
-  if (!analysis) return null
-
-  if (analysis.status === 'pending' || analysis.status === 'analyzing') {
-    return (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-        <span className="spinner spinner--small" /> <Text size="small" style={{ color: 'var(--fgColor-muted)' }}>Analyzing...</Text>
-      </span>
-    )
-  }
-
-  if (analysis.status === 'failed') {
-    return <Label variant="danger">Failed</Label>
-  }
-
-  if (analysis.status === 'completed' && analysis.confidence_score != null) {
-    return (
-      <>
-        <span style={{
-          fontSize: '0.75rem',
-          padding: '2px 8px',
-          borderRadius: '2em',
-          fontWeight: 600,
-          background: getConfidenceColor(analysis.confidence_score),
-          color: '#fff',
-        }}>
-          Score: {analysis.confidence_score}/10
-        </span>
-        <FixBadge githubUrl={githubUrl} issueId={issueId} />
-      </>
-    )
-  }
-
-  if (analysis.status === 'completed') {
-    return (
-      <>
-        <Label variant="success">Analyzed</Label>
-        <FixBadge githubUrl={githubUrl} issueId={issueId} />
-      </>
-    )
-  }
-
-  return null
-}
 
 function extractRepoName(url: string): string {
   try {
@@ -156,7 +37,7 @@ function formatDate(isoDate: string): string {
 
 const GITHUB_URL_RE = /^https?:\/\/github\.com\/[^/]+\/[^/]+/
 
-export function Issues() {
+export const Issues = React.memo(function IssuesFn() {
   const [searchParams] = useSearchParams()
   const githubUrl = searchParams.get('github_url') ?? ''
   const repoName = extractRepoName(githubUrl)
@@ -326,4 +207,4 @@ export function Issues() {
       )}
     </div>
   )
-}
+})
