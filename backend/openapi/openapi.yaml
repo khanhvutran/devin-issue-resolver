@@ -4,18 +4,6 @@ info:
   version: "1.0.0"
 
 paths:
-  /api/health:
-    get:
-      operationId: app.routes.health.health_check
-      summary: Health check
-      description: Verify the API is running
-      responses:
-        "200":
-          description: Successful response
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/HealthOut"
   /api/issues:
     get:
       operationId: app.routes.issues.issues
@@ -186,16 +174,6 @@ paths:
 
 components:
   schemas:
-    HealthOut:
-      type: object
-      required:
-        - message
-        - status
-      properties:
-        message:
-          type: string
-        status:
-          type: string
     IssuesResponse:
       type: object
       required:

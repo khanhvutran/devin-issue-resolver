@@ -11,7 +11,6 @@ backend/                  # Python/Flask API (Connexion 3, spec-first)
   app/
     __init__.py           # App factory (Connexion)
     routes/
-      health.py           # Handler: GET /api/health
   run.py                  # Entry point
   requirements.txt        # Python dependencies
 

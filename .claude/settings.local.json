@@ -40,7 +40,9 @@
       "WebFetch(domain:primer.style)",
       "WebFetch(domain:www.npmjs.com)",
       "Bash(node -e:*)",
-      "Bash(npx vite build:*)"
+      "Bash(npx vite build:*)",
+      "Bash(xargs:*)",
+      "Bash(grep:*)"
     ]
   }
 }
