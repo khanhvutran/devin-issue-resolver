@@ -24,11 +24,11 @@ export const AnalysisBadge = React.memo(function AnalysisBadgeFn({ githubUrl, is
   const { data: analysis } = useQuery<AnalysisResult | null>({
     queryKey: ['devin-analysis', githubUrl, issueId],
     queryFn: async () => {
-      const { data, error, response } = await client.GET('/api/devin/analysis', {
+      const { data, error } = await client.GET('/api/devin/analysis', {
         params: { query: { github_url: githubUrl, issue_id: issueId } },
       })
-      if (response.status === 404) return null
       if (error) throw new Error(JSON.stringify(error))
+      if (data.status === 'not_found') return null
       return data
     },
     refetchInterval: (query) => {

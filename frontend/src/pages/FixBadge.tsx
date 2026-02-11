@@ -17,11 +17,11 @@ export const FixBadge = React.memo(function FixBadgeFn({ githubUrl, issueId }: P
   const { data: fixStatus } = useQuery<FixStatusResult | null>({
     queryKey: ['devin-fix', githubUrl, issueId],
     queryFn: async () => {
-      const { data, error, response } = await client.GET('/api/devin/fix-status', {
+      const { data, error } = await client.GET('/api/devin/fix-status', {
         params: { query: { github_url: githubUrl, issue_id: issueId } },
       })
-      if (response.status === 404) return null
       if (error) throw new Error(JSON.stringify(error))
+      if (data.fix_status === 'not_found') return null
       return data
     },
     refetchInterval: (query) => {

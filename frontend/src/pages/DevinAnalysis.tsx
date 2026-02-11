@@ -32,11 +32,11 @@ export const DevinAnalysis = React.memo(function DevinAnalysisFn({ githubUrl, is
   const analysisQuery = useQuery<AnalysisResult | null>({
     queryKey: ['devin-analysis', githubUrl, issue.issue_id],
     queryFn: async () => {
-      const { data, error, response } = await client.GET('/api/devin/analysis', {
+      const { data, error } = await client.GET('/api/devin/analysis', {
         params: { query: { github_url: githubUrl, issue_id: issue.issue_id } },
       })
-      if (response.status === 404) return null
       if (error) throw new Error(JSON.stringify(error))
+      if (data.status === 'not_found') return null
       return data
     },
     refetchInterval: (query) => {

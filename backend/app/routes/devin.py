@@ -50,7 +50,11 @@ def analyze(body):
 def get_analysis_status(github_url, issue_id):
     analysis = get_analysis(github_url, issue_id)
     if analysis is None:
-        return {"error": "Analysis not found"}, 404
+        return {
+            "github_url": github_url,
+            "issue_id": issue_id,
+            "status": "not_found",
+        }
 
     return {
         "github_url": analysis["github_url"],
@@ -107,7 +111,11 @@ def fix_issue(body):
 def get_fix_status(github_url, issue_id):
     analysis = get_analysis(github_url, issue_id)
     if analysis is None or analysis.get("fix_status") is None:
-        return {"error": "Fix not found"}, 404
+        return {
+            "github_url": github_url,
+            "issue_id": issue_id,
+            "fix_status": "not_found",
+        }
 
     return {
         "github_url": analysis["github_url"],

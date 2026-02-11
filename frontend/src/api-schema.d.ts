@@ -279,22 +279,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Analysis found */
+            /** @description Analysis status (status will be "not_found" if no analysis exists) */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["AnalysisResult"];
-                };
-            };
-            /** @description Analysis not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -378,22 +369,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Fix status found */
+            /** @description Fix status (fix_status will be "not_found" if no fix exists) */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["FixStatusResult"];
-                };
-            };
-            /** @description Fix not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
