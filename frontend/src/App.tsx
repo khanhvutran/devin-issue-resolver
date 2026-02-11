@@ -2,8 +2,7 @@ import React, { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { Heading, Text, TextInput, Button, FormControl } from '@primer/react'
 import { MarkGithubIcon } from '@primer/octicons-react'
-
-const GITHUB_URL_RE = /^https?:\/\/github\.com\/[^/]+\/[^/]+/
+import { GITHUB_URL_RE } from './utils'
 
 export const App = React.memo(function AppFn() {
   const [githubUrl, setGithubUrl] = useState('')

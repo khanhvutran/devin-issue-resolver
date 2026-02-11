@@ -9,33 +9,11 @@ import { ArrowLeftIcon, CommentIcon, IssueOpenedIcon } from '@primer/octicons-re
 import createClient from 'openapi-fetch'
 import type { paths, components } from '../api-schema'
 import { AnalysisBadge } from './AnalysisBadge'
+import { GITHUB_URL_RE, extractRepoName, formatDate } from '../utils'
 
 const client = createClient<paths>()
 
 type IssuesResponse = components['schemas']['IssuesResponse']
-
-function extractRepoName(url: string): string {
-  try {
-    const parsed = new URL(url)
-    const parts = parsed.pathname.split('/').filter(Boolean)
-    if (parts.length >= 2) return `${parts[0]}/${parts[1]}`
-  } catch { /* ignore */ }
-  return url
-}
-
-function formatDate(isoDate: string): string {
-  try {
-    return new Date(isoDate).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
-  } catch {
-    return isoDate
-  }
-}
-
-const GITHUB_URL_RE = /^https?:\/\/github\.com\/[^/]+\/[^/]+/
 
 export const Issues = React.memo(function IssuesFn() {
   const [searchParams] = useSearchParams()
@@ -51,12 +29,12 @@ export const Issues = React.memo(function IssuesFn() {
       })
       if (error) {
         if (response.status === 400) {
-          throw new Error(error.error || "The URL provided is not a valid GitHub repository URL.")
+          throw new Error(error.error || 'The URL provided is not a valid GitHub repository URL.')
         }
         if (response.status === 403) {
-          throw new Error(error.error || "Cannot access this repository with the provided token.")
+          throw new Error(error.error || 'Cannot access this repository with the provided token.')
         }
-        throw new Error(error.error || "Failed to load issues.")
+        throw new Error(error.error || 'Failed to load issues.')
       }
       return data
     },

@@ -4,16 +4,11 @@ import { Text, Label } from '@primer/react'
 import createClient from 'openapi-fetch'
 import type { paths, components } from '../api-schema'
 import { FixBadge } from './FixBadge'
+import { getConfidenceColor } from '../utils'
 
 const client = createClient<paths>()
 
 type AnalysisResult = components['schemas']['AnalysisResult']
-
-function getConfidenceColor(score: number): string {
-  if (score >= 8) return '#238636'
-  if (score >= 5) return '#d29922'
-  return '#d93025'
-}
 
 interface Props {
   githubUrl: string

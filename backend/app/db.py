@@ -1,18 +1,19 @@
 import sqlite3
 import os
 from pathlib import Path
+from typing import Any, Dict, Optional
 
 DB_PATH = os.environ.get("DEVIN_DB_PATH", str(Path(__file__).resolve().parent.parent / "devin.db"))
 
 
-def get_connection():
+def get_connection() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     return conn
 
 
-def init_db():
+def init_db() -> None:
     conn = get_connection()
     conn.execute("""
         CREATE TABLE IF NOT EXISTS devin_analyses (
@@ -47,7 +48,7 @@ def init_db():
     conn.close()
 
 
-def get_analysis(github_url, issue_id):
+def get_analysis(github_url: str, issue_id: int) -> Optional[Dict[str, Any]]:
     conn = get_connection()
     row = conn.execute(
         "SELECT * FROM devin_analyses WHERE github_url = ? AND issue_id = ?",
@@ -59,7 +60,7 @@ def get_analysis(github_url, issue_id):
     return dict(row)
 
 
-def upsert_analysis(github_url, issue_id, **kwargs):
+def upsert_analysis(github_url: str, issue_id: int, **kwargs: Any) -> None:
     conn = get_connection()
     existing = conn.execute(
         "SELECT id FROM devin_analyses WHERE github_url = ? AND issue_id = ?",
@@ -88,7 +89,7 @@ def upsert_analysis(github_url, issue_id, **kwargs):
     conn.close()
 
 
-def update_analysis(github_url, issue_id, **kwargs):
+def update_analysis(github_url: str, issue_id: int, **kwargs: Any) -> None:
     conn = get_connection()
     update_fields = ", ".join(f"{k} = ?" for k in kwargs)
     values = list(kwargs.values()) + [github_url, issue_id]
@@ -101,7 +102,7 @@ def update_analysis(github_url, issue_id, **kwargs):
     conn.close()
 
 
-def delete_analysis(github_url, issue_id):
+def delete_analysis(github_url: str, issue_id: int) -> None:
     conn = get_connection()
     conn.execute(
         "DELETE FROM devin_analyses WHERE github_url = ? AND issue_id = ?",

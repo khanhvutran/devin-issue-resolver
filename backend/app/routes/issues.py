@@ -1,8 +1,12 @@
-from github import Github, GithubException
-from typing import List, Dict, Tuple, Union
-from urllib.parse import urlparse
+import logging
 import os
 import re
+from typing import List, Dict, Tuple, Union
+from urllib.parse import urlparse
+
+from github import Github, GithubException
+
+logger = logging.getLogger(__name__)
 
 GITHUB_URL_RE = re.compile(r'^https?://github\.com/[^/]+/[^/]+')
 
@@ -60,5 +64,5 @@ def issues(github_url: str) -> Union[Dict, Tuple[Dict, int]]:
     except GithubException as e:
         if e.status in (401, 403, 404):
             return {"error": f"Cannot access repository '{repo_name}'. Your GitHub token may not have permission to view this repository, or the repository does not exist."}, 403
-        print(f"GitHub API error: {e}")
+        logger.error("GitHub API error: %s", e)
         return {"error": f"GitHub API error: {e.data.get('message', str(e)) if e.data else str(e)}"}, 403

@@ -1,3 +1,5 @@
+from typing import Any, Dict, Optional, Tuple, Union
+
 from app.db import get_analysis, upsert_analysis, update_analysis, delete_analysis as db_delete_analysis
 from app.devin_client import (
     build_prompt,
@@ -7,11 +9,14 @@ from app.devin_client import (
     start_fix_polling_thread,
 )
 
+ResponseWithStatus = Tuple[Dict[str, Any], int]
+Response = Union[Dict[str, Any], ResponseWithStatus]
 
-def analyze(body):
-    github_url = body["github_url"]
-    issue_id = body["issue_id"]
-    issue_title = body.get("issue_title", f"Issue #{issue_id}")
+
+def analyze(body: Dict[str, Any]) -> ResponseWithStatus:
+    github_url: str = body["github_url"]
+    issue_id: int = body["issue_id"]
+    issue_title: str = body.get("issue_title", f"Issue #{issue_id}")
 
     existing = get_analysis(github_url, issue_id)
     if existing and existing["status"] in ("pending", "analyzing"):
@@ -47,7 +52,7 @@ def analyze(body):
     }, 202
 
 
-def get_analysis_status(github_url, issue_id):
+def get_analysis_status(github_url: str, issue_id: int) -> Dict[str, Any]:
     analysis = get_analysis(github_url, issue_id)
     if analysis is None:
         return {
@@ -69,7 +74,7 @@ def get_analysis_status(github_url, issue_id):
     }
 
 
-def fix_issue(body):
+def fix_issue(body: Dict[str, Any]) -> ResponseWithStatus:
     github_url = body["github_url"]
     issue_id = body["issue_id"]
     issue_title = body.get("issue_title", f"Issue #{issue_id}")
@@ -108,7 +113,7 @@ def fix_issue(body):
     }, 202
 
 
-def get_fix_status(github_url, issue_id):
+def get_fix_status(github_url: str, issue_id: int) -> Dict[str, Any]:
     analysis = get_analysis(github_url, issue_id)
     if analysis is None or analysis.get("fix_status") is None:
         return {
@@ -127,7 +132,7 @@ def get_fix_status(github_url, issue_id):
     }
 
 
-def remove_analysis(github_url, issue_id):
+def remove_analysis(github_url: str, issue_id: int) -> ResponseWithStatus:
     analysis = get_analysis(github_url, issue_id)
     if analysis is None:
         return {"error": "Analysis not found"}, 404

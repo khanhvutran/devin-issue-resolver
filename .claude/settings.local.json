@@ -42,7 +42,9 @@
       "Bash(node -e:*)",
       "Bash(npx vite build:*)",
       "Bash(xargs:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(/Users/khanhtran/devin/backend/venv/bin/python3:*)",
+      "Bash(PYTHONPATH=. /Users/khanhtran/devin/backend/venv/bin/python3:*)"
     ]
   }
 }

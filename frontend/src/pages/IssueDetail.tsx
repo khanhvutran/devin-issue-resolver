@@ -9,31 +9,11 @@ import { ArrowLeftIcon, CommentIcon } from '@primer/octicons-react'
 import createClient from 'openapi-fetch'
 import type { paths, components } from '../api-schema'
 import { DevinAnalysis } from './DevinAnalysis'
+import { extractRepoName, formatDate } from '../utils'
 
 const client = createClient<paths>()
 
 type IssuesResponse = components['schemas']['IssuesResponse']
-
-function formatDate(isoDate: string): string {
-  try {
-    return new Date(isoDate).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
-  } catch {
-    return isoDate
-  }
-}
-
-function extractRepoName(url: string): string {
-  try {
-    const parsed = new URL(url)
-    const parts = parsed.pathname.split('/').filter(Boolean)
-    if (parts.length >= 2) return `${parts[0]}/${parts[1]}`
-  } catch { /* ignore */ }
-  return url
-}
 
 export const IssueDetail = React.memo(function IssueDetailFn() {
   const [searchParams] = useSearchParams()
@@ -41,7 +21,7 @@ export const IssueDetail = React.memo(function IssueDetailFn() {
   const issueId = Number(searchParams.get('issue_id'))
   const repoName = extractRepoName(githubUrl)
 
-  const { data: issuesResponse, isLoading, error } = useQuery<IssuesResponse>({
+  const { data: issuesResponse, isLoading, error } = useQuery<IssuesResponse, Error>({
     queryKey: ['issues', githubUrl],
     queryFn: async () => {
       const { data, error, response } = await client.GET('/api/issues', {
@@ -49,12 +29,12 @@ export const IssueDetail = React.memo(function IssueDetailFn() {
       })
       if (error) {
         if (response.status === 400) {
-          throw new Error(error.error || "The URL provided is not a valid GitHub repository URL.")
+          throw new Error(error.error || 'The URL provided is not a valid GitHub repository URL.')
         }
         if (response.status === 403) {
-          throw new Error(error.error || "Cannot access this repository with the provided token.")
+          throw new Error(error.error || 'Cannot access this repository with the provided token.')
         }
-        throw new Error(error.error || "Failed to load issues.")
+        throw new Error(error.error || 'Failed to load issues.')
       }
       return data
     },

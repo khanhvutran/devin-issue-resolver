@@ -7,17 +7,12 @@ import {
 import createClient from 'openapi-fetch'
 import type { paths, components } from '../api-schema'
 import { FixWithDevin } from './FixWithDevin'
+import { getConfidenceColor } from '../utils'
 
 const client = createClient<paths>()
 
 type Issue = components['schemas']['Issue']
 type AnalysisResult = components['schemas']['AnalysisResult']
-
-function getConfidenceColor(score: number): string {
-  if (score >= 8) return '#238636'
-  if (score >= 5) return '#d29922'
-  return '#d93025'
-}
 
 interface Props {
   githubUrl: string
