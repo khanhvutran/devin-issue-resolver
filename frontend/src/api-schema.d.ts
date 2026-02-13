@@ -196,6 +196,8 @@ export interface operations {
             query: {
                 /** @description GitHub repository URL (e.g. https://github.com/owner/repo) */
                 github_url: string;
+                /** @description Filter issues by state */
+                state?: "open" | "closed" | "all";
             };
             header?: never;
             path?: never;

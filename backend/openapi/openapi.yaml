@@ -16,6 +16,17 @@ paths:
           schema:
             type: string
           description: GitHub repository URL (e.g. https://github.com/owner/repo)
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - open
+              - closed
+              - all
+            default: open
+          description: Filter issues by state
       responses:
         "200":
           description: Successful response

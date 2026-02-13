@@ -1,11 +1,11 @@
-import React from 'react'
+import React, { useState, useMemo } from 'react'
 import { useSearchParams, Link } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import {
   Heading, Text, Button, Flash, StateLabel,
-  Avatar, Breadcrumbs,
+  Avatar, Breadcrumbs, TextInput, SegmentedControl,
 } from '@primer/react'
-import { ArrowLeftIcon, CommentIcon, IssueOpenedIcon } from '@primer/octicons-react'
+import { ArrowLeftIcon, CommentIcon, IssueOpenedIcon, SearchIcon } from '@primer/octicons-react'
 import createClient from 'openapi-fetch'
 import type { paths, components } from '../api-schema'
 import { AnalysisBadge } from './AnalysisBadge'
@@ -14,6 +14,13 @@ import { GITHUB_URL_RE, extractRepoName, formatDate } from '../utils'
 const client = createClient<paths>()
 
 type IssuesResponse = components['schemas']['IssuesResponse']
+type StateFilter = 'open' | 'closed' | 'all'
+
+const STATE_OPTIONS: { label: string; value: StateFilter }[] = [
+  { label: 'Open', value: 'open' },
+  { label: 'Closed', value: 'closed' },
+  { label: 'All', value: 'all' },
+]
 
 export const Issues = React.memo(function IssuesFn() {
   const [searchParams] = useSearchParams()
@@ -21,11 +28,14 @@ export const Issues = React.memo(function IssuesFn() {
   const repoName = extractRepoName(githubUrl)
   const isValidUrl = GITHUB_URL_RE.test(githubUrl)
 
+  const [searchText, setSearchText] = useState('')
+  const [stateFilter, setStateFilter] = useState<StateFilter>('open')
+
   const { data: issuesResponse, isLoading, error, refetch } = useQuery<IssuesResponse, Error>({
-    queryKey: ['issues', githubUrl],
+    queryKey: ['issues', githubUrl, stateFilter],
     queryFn: async () => {
       const { data, error, response } = await client.GET('/api/issues', {
-        params: { query: { github_url: githubUrl } },
+        params: { query: { github_url: githubUrl, state: stateFilter } },
       })
       if (error) {
         if (response.status === 400) {
@@ -42,8 +52,17 @@ export const Issues = React.memo(function IssuesFn() {
     retry: false,
   })
 
-  const issues = issuesResponse?.issues
+  const allIssues = issuesResponse?.issues
   const canPush = issuesResponse?.can_push ?? true
+
+  const filteredIssues = useMemo(() => {
+    if (!allIssues) return undefined
+    if (!searchText.trim()) return allIssues
+    const query = searchText.toLowerCase()
+    return allIssues.filter(issue => issue.issue_title.toLowerCase().includes(query))
+  }, [allIssues, searchText])
+
+  const selectedStateIndex = STATE_OPTIONS.findIndex(o => o.value === stateFilter)
 
   if (!githubUrl) {
     return (
@@ -79,6 +98,24 @@ export const Issues = React.memo(function IssuesFn() {
         <Heading as="h1" style={{ marginTop: '0.5rem' }}>{repoName}</Heading>
       </div>
 
+      <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap' }}>
+        <TextInput
+          leadingVisual={SearchIcon}
+          placeholder="Search issues..."
+          value={searchText}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchText(e.target.value)}
+          aria-label="Search issues by title"
+          style={{ flex: 1, minWidth: '200px' }}
+        />
+        <SegmentedControl aria-label="Issue state filter" onChange={(index: number) => setStateFilter(STATE_OPTIONS[index].value)}>
+          {STATE_OPTIONS.map(opt => (
+            <SegmentedControl.Button key={opt.value} selected={opt.value === STATE_OPTIONS[selectedStateIndex].value}>
+              {opt.label}
+            </SegmentedControl.Button>
+          ))}
+        </SegmentedControl>
+      </div>
+
       {isLoading && (
         <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem 0' }}>
           <span className="spinner spinner--large" />
@@ -92,13 +129,19 @@ export const Issues = React.memo(function IssuesFn() {
         </Flash>
       )}
 
-      {issues && !canPush && (
+      {allIssues && !canPush && (
         <Flash variant="warning" style={{ marginBottom: '1rem' }}>
           You have read-only access to this repository. Devin won't be able to create pull requests for fixes.
         </Flash>
       )}
 
-      {issues && issues.length === 0 && (
+      {filteredIssues && allIssues && filteredIssues.length !== allIssues.length && filteredIssues.length > 0 && (
+        <Text as="p" size="small" style={{ color: 'var(--fgColor-muted)', marginBottom: '0.75rem' }}>
+          Showing {filteredIssues.length} of {allIssues.length} issues
+        </Text>
+      )}
+
+      {allIssues && allIssues.length === 0 && (
         <div style={{
           textAlign: 'center',
           padding: '3rem 1rem',
@@ -108,17 +151,39 @@ export const Issues = React.memo(function IssuesFn() {
         }}>
           <IssueOpenedIcon size={24} />
           <Heading as="h3" style={{ marginTop: '0.5rem', marginBottom: '0.25rem' }}>No issues found</Heading>
-          <Text>This repository doesn't have any open issues.</Text>
+          <Text>This repository doesn't have any {stateFilter === 'all' ? '' : stateFilter} issues.</Text>
         </div>
       )}
 
-      {issues && issues.length > 0 && (
+      {filteredIssues && allIssues && allIssues.length > 0 && filteredIssues.length === 0 && (
+        <div style={{
+          textAlign: 'center',
+          padding: '3rem 1rem',
+          border: '1px dashed var(--borderColor-default)',
+          borderRadius: '6px',
+          color: 'var(--fgColor-muted)',
+        }}>
+          <SearchIcon size={24} />
+          <Heading as="h3" style={{ marginTop: '0.5rem', marginBottom: '0.25rem' }}>No issues match your search</Heading>
+          <Text as="p">Try a different search term or adjust your filters.</Text>
+          <Button
+            variant="invisible"
+            size="small"
+            style={{ marginTop: '0.75rem' }}
+            onClick={() => setSearchText('')}
+          >
+            Clear search
+          </Button>
+        </div>
+      )}
+
+      {filteredIssues && filteredIssues.length > 0 && (
         <div style={{
           border: '1px solid var(--borderColor-default)',
           borderRadius: '6px',
           overflow: 'hidden',
         }}>
-          {issues.map((issue, idx) => (
+          {filteredIssues.map((issue, idx) => (
             <div
               key={issue.issue_id}
               style={{
