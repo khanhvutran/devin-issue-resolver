@@ -20,7 +20,7 @@ def normalize_github_url(url: str) -> Optional[str]:
     return f"https://github.com/{path_parts[0]}/{path_parts[1]}"
 
 
-def issues(github_url: str) -> Union[Dict, Tuple[Dict, int]]:
+def issues(github_url: str, state: str = 'open') -> Union[Dict, Tuple[Dict, int]]:
     # Validate URL format
     if not GITHUB_URL_RE.match(github_url):
         return {"error": f"'{github_url}' is not a valid GitHub repository URL. Please use a URL like https://github.com/owner/repo."}, 400
@@ -48,8 +48,7 @@ def issues(github_url: str) -> Union[Dict, Tuple[Dict, int]]:
         permissions = repo_obj.permissions
         can_push = permissions.push if permissions else False
 
-        # Fetch issues (open only, limit to prevent timeouts)
-        github_issues = list(repo_obj.get_issues(state='open'))[:100]
+        github_issues = list(repo_obj.get_issues(state=state))[:100]
 
         result = []
         for issue in github_issues:
