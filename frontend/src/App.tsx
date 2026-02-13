@@ -2,7 +2,7 @@ import React, { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { Heading, Text, TextInput, Button, FormControl } from '@primer/react'
 import { MarkGithubIcon } from '@primer/octicons-react'
-import { GITHUB_URL_RE } from './utils'
+import { GITHUB_URL_RE, normalizeGithubUrl } from './utils'
 
 export const App = React.memo(function AppFn() {
   const [githubUrl, setGithubUrl] = useState('')
@@ -21,7 +21,7 @@ export const App = React.memo(function AppFn() {
       return
     }
     setValidationError('')
-    navigate(`/issues?github_url=${encodeURIComponent(url)}`)
+    navigate(`/issues?github_url=${encodeURIComponent(normalizeGithubUrl(url))}`)
   }
 
   return (

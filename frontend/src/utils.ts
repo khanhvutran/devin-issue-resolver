@@ -26,3 +26,12 @@ export function extractRepoName(url: string): string {
   } catch { /* ignore */ }
   return url
 }
+
+export function normalizeGithubUrl(url: string): string {
+  try {
+    const parsed = new URL(url)
+    const parts = parsed.pathname.split('/').filter(Boolean)
+    if (parts.length >= 2) return `https://github.com/${parts[0]}/${parts[1]}`
+  } catch { /* ignore */ }
+  return url
+}

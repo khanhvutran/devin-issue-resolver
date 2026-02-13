@@ -8,13 +8,14 @@ from app.devin_client import (
     start_polling_thread,
     start_fix_polling_thread,
 )
+from app.routes.issues import normalize_github_url
 
 ResponseWithStatus = Tuple[Dict[str, Any], int]
 Response = Union[Dict[str, Any], ResponseWithStatus]
 
 
 def analyze(body: Dict[str, Any]) -> ResponseWithStatus:
-    github_url: str = body["github_url"]
+    github_url: str = normalize_github_url(body["github_url"]) or body["github_url"]
     issue_id: int = body["issue_id"]
     issue_title: str = body.get("issue_title", f"Issue #{issue_id}")
 
@@ -53,6 +54,7 @@ def analyze(body: Dict[str, Any]) -> ResponseWithStatus:
 
 
 def get_analysis_status(github_url: str, issue_id: int) -> Dict[str, Any]:
+    github_url = normalize_github_url(github_url) or github_url
     analysis = get_analysis(github_url, issue_id)
     if analysis is None:
         return {
@@ -75,7 +77,7 @@ def get_analysis_status(github_url: str, issue_id: int) -> Dict[str, Any]:
 
 
 def fix_issue(body: Dict[str, Any]) -> ResponseWithStatus:
-    github_url = body["github_url"]
+    github_url = normalize_github_url(body["github_url"]) or body["github_url"]
     issue_id = body["issue_id"]
     issue_title = body.get("issue_title", f"Issue #{issue_id}")
     plan = body["plan"]
@@ -114,6 +116,7 @@ def fix_issue(body: Dict[str, Any]) -> ResponseWithStatus:
 
 
 def get_fix_status(github_url: str, issue_id: int) -> Dict[str, Any]:
+    github_url = normalize_github_url(github_url) or github_url
     analysis = get_analysis(github_url, issue_id)
     if analysis is None or analysis.get("fix_status") is None:
         return {
@@ -133,6 +136,7 @@ def get_fix_status(github_url: str, issue_id: int) -> Dict[str, Any]:
 
 
 def remove_analysis(github_url: str, issue_id: int) -> ResponseWithStatus:
+    github_url = normalize_github_url(github_url) or github_url
     analysis = get_analysis(github_url, issue_id)
     if analysis is None:
         return {"error": "Analysis not found"}, 404

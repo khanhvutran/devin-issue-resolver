@@ -1,7 +1,7 @@
 import logging
 import os
 import re
-from typing import List, Dict, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 from urllib.parse import urlparse
 
 from github import Github, GithubException
@@ -11,10 +11,21 @@ logger = logging.getLogger(__name__)
 GITHUB_URL_RE = re.compile(r'^https?://github\.com/[^/]+/[^/]+')
 
 
+def normalize_github_url(url: str) -> Optional[str]:
+    """Normalize a GitHub URL to https://github.com/owner/repo."""
+    parsed = urlparse(url)
+    path_parts = [p for p in parsed.path.strip("/").split("/") if p]
+    if len(path_parts) < 2:
+        return None
+    return f"https://github.com/{path_parts[0]}/{path_parts[1]}"
+
+
 def issues(github_url: str) -> Union[Dict, Tuple[Dict, int]]:
     # Validate URL format
     if not GITHUB_URL_RE.match(github_url):
         return {"error": f"'{github_url}' is not a valid GitHub repository URL. Please use a URL like https://github.com/owner/repo."}, 400
+
+    github_url = normalize_github_url(github_url) or github_url
 
     try:
         token = os.getenv("GITHUB_TOKEN")
