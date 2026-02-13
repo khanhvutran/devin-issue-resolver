@@ -116,6 +116,13 @@ export interface components {
             issues: components["schemas"]["Issue"][];
             /** @description Whether the token has push access to create PRs */
             can_push: boolean;
+            pagination: components["schemas"]["PaginationMeta"];
+        };
+        PaginationMeta: {
+            total_count: number;
+            page: number;
+            per_page: number;
+            total_pages: number;
         };
         Issue: {
             issue_id: number;
@@ -196,6 +203,10 @@ export interface operations {
             query: {
                 /** @description GitHub repository URL (e.g. https://github.com/owner/repo) */
                 github_url: string;
+                /** @description Page number (1-indexed) */
+                page?: number;
+                /** @description Number of issues per page */
+                per_page?: number;
             };
             header?: never;
             path?: never;

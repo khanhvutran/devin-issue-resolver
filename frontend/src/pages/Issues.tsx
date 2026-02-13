@@ -1,11 +1,11 @@
-import React from 'react'
+import React, { useCallback } from 'react'
 import { useSearchParams, Link } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import {
   Heading, Text, Button, Flash, StateLabel,
   Avatar, Breadcrumbs,
 } from '@primer/react'
-import { ArrowLeftIcon, CommentIcon, IssueOpenedIcon } from '@primer/octicons-react'
+import { ArrowLeftIcon, ChevronLeftIcon, ChevronRightIcon, CommentIcon, IssueOpenedIcon } from '@primer/octicons-react'
 import createClient from 'openapi-fetch'
 import type { paths, components } from '../api-schema'
 import { AnalysisBadge } from './AnalysisBadge'
@@ -15,17 +15,28 @@ const client = createClient<paths>()
 
 type IssuesResponse = components['schemas']['IssuesResponse']
 
+const PER_PAGE = 30
+
 export const Issues = React.memo(function IssuesFn() {
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const githubUrl = searchParams.get('github_url') ?? ''
+  const page = Math.max(1, Number(searchParams.get('page') ?? '1'))
   const repoName = extractRepoName(githubUrl)
   const isValidUrl = GITHUB_URL_RE.test(githubUrl)
 
+  const setPage = useCallback((newPage: number) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      next.set('page', String(newPage))
+      return next
+    })
+  }, [setSearchParams])
+
   const { data: issuesResponse, isLoading, error, refetch } = useQuery<IssuesResponse, Error>({
-    queryKey: ['issues', githubUrl],
+    queryKey: ['issues', githubUrl, page],
     queryFn: async () => {
       const { data, error, response } = await client.GET('/api/issues', {
-        params: { query: { github_url: githubUrl } },
+        params: { query: { github_url: githubUrl, page, per_page: PER_PAGE } },
       })
       if (error) {
         if (response.status === 400) {
@@ -44,6 +55,7 @@ export const Issues = React.memo(function IssuesFn() {
 
   const issues = issuesResponse?.issues
   const canPush = issuesResponse?.can_push ?? true
+  const pagination = issuesResponse?.pagination
 
   if (!githubUrl) {
     return (
@@ -181,6 +193,37 @@ export const Issues = React.memo(function IssuesFn() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {pagination && pagination.total_pages > 1 && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '1rem',
+          marginTop: '1.5rem',
+          padding: '1rem 0',
+        }}>
+          <Button
+            leadingVisual={ChevronLeftIcon}
+            disabled={page <= 1}
+            onClick={() => setPage(page - 1)}
+            size="small"
+          >
+            Previous
+          </Button>
+          <Text style={{ color: 'var(--fgColor-muted)', fontSize: '0.875rem' }}>
+            Page {pagination.page} of {pagination.total_pages}, showing {issues?.length ?? 0} of {pagination.total_count} issues
+          </Text>
+          <Button
+            trailingVisual={ChevronRightIcon}
+            disabled={page >= pagination.total_pages}
+            onClick={() => setPage(page + 1)}
+            size="small"
+          >
+            Next
+          </Button>
         </div>
       )}
     </div>

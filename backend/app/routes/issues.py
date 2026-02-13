@@ -1,7 +1,8 @@
 import logging
+import math
 import os
 import re
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, Tuple, Union
 from urllib.parse import urlparse
 
 from github import Github, GithubException
@@ -20,8 +21,7 @@ def normalize_github_url(url: str) -> Optional[str]:
     return f"https://github.com/{path_parts[0]}/{path_parts[1]}"
 
 
-def issues(github_url: str) -> Union[Dict, Tuple[Dict, int]]:
-    # Validate URL format
+def issues(github_url: str, page: int = 1, per_page: int = 30) -> Union[Dict, Tuple[Dict, int]]:
     if not GITHUB_URL_RE.match(github_url):
         return {"error": f"'{github_url}' is not a valid GitHub repository URL. Please use a URL like https://github.com/owner/repo."}, 400
 
@@ -41,18 +41,20 @@ def issues(github_url: str) -> Union[Dict, Tuple[Dict, int]]:
         repo = path_parts[1]
         repo_name = f"{owner}/{repo}"
 
-        g = Github(token)
+        g = Github(token, per_page=per_page)
         repo_obj = g.get_repo(repo_name)
 
-        # Check permissions
         permissions = repo_obj.permissions
         can_push = permissions.push if permissions else False
 
-        # Fetch issues (open only, limit to prevent timeouts)
-        github_issues = list(repo_obj.get_issues(state='open'))[:100]
+        paginated_issues = repo_obj.get_issues(state='open')
+        total_count = paginated_issues.totalCount
+        total_pages = max(1, math.ceil(total_count / per_page))
+
+        page_results = paginated_issues.get_page(page - 1)
 
         result = []
-        for issue in github_issues:
+        for issue in page_results:
             if issue.pull_request is not None:
                 continue
             result.append({
@@ -70,7 +72,16 @@ def issues(github_url: str) -> Union[Dict, Tuple[Dict, int]]:
                 'comment_count': issue.comments,
             })
 
-        return {"issues": result, "can_push": can_push}
+        return {
+            "issues": result,
+            "can_push": can_push,
+            "pagination": {
+                "total_count": total_count,
+                "page": page,
+                "per_page": per_page,
+                "total_pages": total_pages,
+            },
+        }
 
     except GithubException as e:
         if e.status in (401, 403, 404):
