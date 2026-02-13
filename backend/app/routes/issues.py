@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 GITHUB_URL_RE = re.compile(r'^https?://github\.com/[^/]+/[^/]+')
 
 
-def normalize_github_url(url: str) -> Optional[str]:
+def normalize_github_url(url: str) -> str | None:
     """Normalize a GitHub URL to https://github.com/owner/repo."""
     parsed = urlparse(url)
     path_parts = [p for p in parsed.path.strip("/").split("/") if p]
