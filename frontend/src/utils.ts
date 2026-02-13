@@ -35,3 +35,29 @@ export function normalizeGithubUrl(url: string): string {
   } catch { /* ignore */ }
   return url
 }
+
+export function extractApiError(error: unknown, fallback = 'An unexpected error occurred.'): string {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'error' in error &&
+    typeof (error as Record<string, unknown>).error === 'string'
+  ) {
+    return (error as Record<string, unknown>).error as string
+  }
+  return fallback
+}
+
+const NETWORK_ERROR_MESSAGE = 'Unable to reach the server. Please check your connection and try again.'
+
+export function isNetworkError(err: unknown): boolean {
+  return err instanceof TypeError && (
+    err.message === 'Failed to fetch' ||
+    err.message === 'NetworkError when attempting to fetch resource.' ||
+    err.message.includes('fetch')
+  )
+}
+
+export function getNetworkErrorMessage(): string {
+  return NETWORK_ERROR_MESSAGE
+}

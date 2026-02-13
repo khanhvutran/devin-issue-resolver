@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Text, Label, Link as PrimerLink } from '@primer/react'
 import createClient from 'openapi-fetch'
 import type { paths, components } from '../api-schema'
+import { extractApiError, isNetworkError, getNetworkErrorMessage } from '../utils'
 
 const client = createClient<paths>()
 
@@ -14,15 +15,20 @@ interface Props {
 }
 
 export const FixBadge = React.memo(function FixBadgeFn({ githubUrl, issueId }: Props) {
-  const { data: fixStatus } = useQuery<FixStatusResult | null>({
+  const { data: fixStatus, error: queryError } = useQuery<FixStatusResult | null>({
     queryKey: ['devin-fix', githubUrl, issueId],
     queryFn: async () => {
-      const { data, error } = await client.GET('/api/devin/fix-status', {
-        params: { query: { github_url: githubUrl, issue_id: issueId } },
-      })
-      if (error) throw new Error(JSON.stringify(error))
-      if (data.fix_status === 'not_found') return null
-      return data
+      try {
+        const { data, error } = await client.GET('/api/devin/fix-status', {
+          params: { query: { github_url: githubUrl, issue_id: issueId } },
+        })
+        if (error) throw new Error(extractApiError(error, 'Failed to load fix status.'))
+        if (data.fix_status === 'not_found') return null
+        return data
+      } catch (err) {
+        if (isNetworkError(err)) throw new Error(getNetworkErrorMessage())
+        throw err
+      }
     },
     refetchInterval: (query) => {
       const status = query.state.data?.fix_status
@@ -30,6 +36,8 @@ export const FixBadge = React.memo(function FixBadgeFn({ githubUrl, issueId }: P
       return false
     },
   })
+
+  if (queryError) return <Label variant="attention">Error</Label>
 
   if (!fixStatus) return null
 

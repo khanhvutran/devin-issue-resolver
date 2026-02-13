@@ -7,6 +7,7 @@ import {
 import { GitPullRequestIcon } from '@primer/octicons-react'
 import createClient from 'openapi-fetch'
 import type { paths, components } from '../api-schema'
+import { extractApiError, isNetworkError, getNetworkErrorMessage } from '../utils'
 
 const client = createClient<paths>()
 
@@ -33,12 +34,17 @@ export const FixWithDevin = React.memo(function FixWithDevinFn({
   const fixStatusQuery = useQuery<FixStatusResult | null>({
     queryKey: ['devin-fix', githubUrl, issue.issue_id],
     queryFn: async () => {
-      const { data, error } = await client.GET('/api/devin/fix-status', {
-        params: { query: { github_url: githubUrl, issue_id: issue.issue_id } },
-      })
-      if (error) throw new Error(JSON.stringify(error))
-      if (data.fix_status === 'not_found') return null
-      return data
+      try {
+        const { data, error } = await client.GET('/api/devin/fix-status', {
+          params: { query: { github_url: githubUrl, issue_id: issue.issue_id } },
+        })
+        if (error) throw new Error(extractApiError(error, 'Failed to load fix status.'))
+        if (data.fix_status === 'not_found') return null
+        return data
+      } catch (err) {
+        if (isNetworkError(err)) throw new Error(getNetworkErrorMessage())
+        throw err
+      }
     },
     refetchInterval: (query) => {
       const status = query.state.data?.fix_status
@@ -49,16 +55,24 @@ export const FixWithDevin = React.memo(function FixWithDevinFn({
 
   const fixMutation = useMutation({
     mutationFn: async () => {
-      const { data, error } = await client.POST('/api/devin/fix', {
-        body: {
-          github_url: githubUrl,
-          issue_id: issue.issue_id,
-          issue_title: issue.issue_title,
-          plan: analysis.plan!,
-        },
-      })
-      if (error) throw new Error(JSON.stringify(error))
-      return data
+      try {
+        const { data, error, response } = await client.POST('/api/devin/fix', {
+          body: {
+            github_url: githubUrl,
+            issue_id: issue.issue_id,
+            issue_title: issue.issue_title,
+            plan: analysis.plan!,
+          },
+        })
+        if (error) {
+          if (response.status === 500) throw new Error(extractApiError(error, 'Server error: please try again later.'))
+          throw new Error(extractApiError(error, 'Failed to start fix.'))
+        }
+        return data
+      } catch (err) {
+        if (isNetworkError(err)) throw new Error(getNetworkErrorMessage())
+        throw err
+      }
     },
     onSuccess: () => {
       setTriggered(true)
@@ -68,6 +82,17 @@ export const FixWithDevin = React.memo(function FixWithDevinFn({
 
   const fixStatus = fixStatusQuery.data
   const isActive = fixStatus?.fix_status === 'pending' || fixStatus?.fix_status === 'analyzing'
+
+  if (fixStatusQuery.error) {
+    return (
+      <Flash variant="danger" style={{ marginTop: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+          <Text>{fixStatusQuery.error.message}</Text>
+          <Button size="small" onClick={() => fixStatusQuery.refetch()}>Retry</Button>
+        </div>
+      </Flash>
+    )
+  }
 
   // Not started
   if (!fixStatus && !triggered) {
@@ -89,7 +114,7 @@ export const FixWithDevin = React.memo(function FixWithDevinFn({
           {fixMutation.isPending ? 'Starting...' : 'Fix with Devin'}
         </Button>
         {fixMutation.isError && (
-          <Flash variant="danger" style={{ marginTop: '0.5rem' }}>Failed to start fix. Please try again.</Flash>
+          <Flash variant="danger" style={{ marginTop: '0.5rem' }}>{fixMutation.error.message}</Flash>
         )}
       </div>
     )
