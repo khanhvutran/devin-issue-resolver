@@ -9,7 +9,7 @@ import { ArrowLeftIcon, CommentIcon, IssueOpenedIcon } from '@primer/octicons-re
 import createClient from 'openapi-fetch'
 import type { paths, components } from '../api-schema'
 import { AnalysisBadge } from './AnalysisBadge'
-import { GITHUB_URL_RE, extractRepoName, formatDate } from '../utils'
+import { GITHUB_URL_RE, extractRepoName, formatDate, isNetworkError, getNetworkErrorMessage } from '../utils'
 
 const client = createClient<paths>()
 
@@ -24,19 +24,24 @@ export const Issues = React.memo(function IssuesFn() {
   const { data: issuesResponse, isLoading, error, refetch } = useQuery<IssuesResponse, Error>({
     queryKey: ['issues', githubUrl],
     queryFn: async () => {
-      const { data, error, response } = await client.GET('/api/issues', {
-        params: { query: { github_url: githubUrl } },
-      })
-      if (error) {
-        if (response.status === 400) {
-          throw new Error(error.error || 'The URL provided is not a valid GitHub repository URL.')
+      try {
+        const { data, error, response } = await client.GET('/api/issues', {
+          params: { query: { github_url: githubUrl } },
+        })
+        if (error) {
+          if (response.status === 400) {
+            throw new Error(error.error || 'The URL provided is not a valid GitHub repository URL.')
+          }
+          if (response.status === 403) {
+            throw new Error(error.error || 'Cannot access this repository with the provided token.')
+          }
+          throw new Error(error.error || 'Failed to load issues.')
         }
-        if (response.status === 403) {
-          throw new Error(error.error || 'Cannot access this repository with the provided token.')
-        }
-        throw new Error(error.error || 'Failed to load issues.')
+        return data
+      } catch (err) {
+        if (isNetworkError(err)) throw new Error(getNetworkErrorMessage())
+        throw err
       }
-      return data
     },
     enabled: !!githubUrl && isValidUrl,
     retry: false,

@@ -7,7 +7,7 @@ import {
 import createClient from 'openapi-fetch'
 import type { paths, components } from '../api-schema'
 import { FixWithDevin } from './FixWithDevin'
-import { getConfidenceColor } from '../utils'
+import { getConfidenceColor, extractApiError, isNetworkError, getNetworkErrorMessage } from '../utils'
 
 const client = createClient<paths>()
 
@@ -27,12 +27,17 @@ export const DevinAnalysis = React.memo(function DevinAnalysisFn({ githubUrl, is
   const analysisQuery = useQuery<AnalysisResult | null>({
     queryKey: ['devin-analysis', githubUrl, issue.issue_id],
     queryFn: async () => {
-      const { data, error } = await client.GET('/api/devin/analysis', {
-        params: { query: { github_url: githubUrl, issue_id: issue.issue_id } },
-      })
-      if (error) throw new Error(JSON.stringify(error))
-      if (data.status === 'not_found') return null
-      return data
+      try {
+        const { data, error } = await client.GET('/api/devin/analysis', {
+          params: { query: { github_url: githubUrl, issue_id: issue.issue_id } },
+        })
+        if (error) throw new Error(extractApiError(error, 'Failed to load analysis status.'))
+        if (data.status === 'not_found') return null
+        return data
+      } catch (err) {
+        if (isNetworkError(err)) throw new Error(getNetworkErrorMessage())
+        throw err
+      }
     },
     refetchInterval: (query) => {
       const status = query.state.data?.status
@@ -43,15 +48,23 @@ export const DevinAnalysis = React.memo(function DevinAnalysisFn({ githubUrl, is
 
   const analyzeMutation = useMutation({
     mutationFn: async () => {
-      const { data, error } = await client.POST('/api/devin/analyze', {
-        body: {
-          github_url: githubUrl,
-          issue_id: issue.issue_id,
-          issue_title: issue.issue_title,
-        },
-      })
-      if (error) throw new Error(JSON.stringify(error))
-      return data
+      try {
+        const { data, error, response } = await client.POST('/api/devin/analyze', {
+          body: {
+            github_url: githubUrl,
+            issue_id: issue.issue_id,
+            issue_title: issue.issue_title,
+          },
+        })
+        if (error) {
+          if (response.status === 500) throw new Error(extractApiError(error, 'Server error: please try again later.'))
+          throw new Error(extractApiError(error, 'Failed to start analysis.'))
+        }
+        return data
+      } catch (err) {
+        if (isNetworkError(err)) throw new Error(getNetworkErrorMessage())
+        throw err
+      }
     },
     onSuccess: () => {
       setTriggered(true)
@@ -61,10 +74,15 @@ export const DevinAnalysis = React.memo(function DevinAnalysisFn({ githubUrl, is
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await client.DELETE('/api/devin/analysis', {
-        params: { query: { github_url: githubUrl, issue_id: issue.issue_id } },
-      })
-      if (error) throw new Error(JSON.stringify(error))
+      try {
+        const { error } = await client.DELETE('/api/devin/analysis', {
+          params: { query: { github_url: githubUrl, issue_id: issue.issue_id } },
+        })
+        if (error) throw new Error(extractApiError(error, 'Failed to delete analysis.'))
+      } catch (err) {
+        if (isNetworkError(err)) throw new Error(getNetworkErrorMessage())
+        throw err
+      }
     },
     onSuccess: () => {
       setTriggered(false)
@@ -76,6 +94,17 @@ export const DevinAnalysis = React.memo(function DevinAnalysisFn({ githubUrl, is
   const analysis = analysisQuery.data
   const isActive = analysis?.status === 'pending' || analysis?.status === 'analyzing'
 
+  if (analysisQuery.error) {
+    return (
+      <Flash variant="danger">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+          <Text>{analysisQuery.error.message}</Text>
+          <Button size="small" onClick={() => analysisQuery.refetch()}>Retry</Button>
+        </div>
+      </Flash>
+    )
+  }
+
   // No analysis yet
   if (!analysis && !triggered) {
     return (
@@ -84,7 +113,7 @@ export const DevinAnalysis = React.memo(function DevinAnalysisFn({ githubUrl, is
           {analyzeMutation.isPending ? 'Starting...' : 'Analyze with Devin'}
         </Button>
         {analyzeMutation.isError && (
-          <Flash variant="danger" style={{ marginTop: '0.5rem' }}>Failed to start analysis. Please try again.</Flash>
+          <Flash variant="danger" style={{ marginTop: '0.5rem' }}>{analyzeMutation.error.message}</Flash>
         )}
       </div>
     )
@@ -118,6 +147,9 @@ export const DevinAnalysis = React.memo(function DevinAnalysisFn({ githubUrl, is
             </Button>
           </div>
         </div>
+        {deleteMutation.isError && (
+          <Text style={{ display: 'block', marginTop: '0.5rem', color: 'var(--fgColor-danger)', fontSize: '0.85rem' }}>{deleteMutation.error.message}</Text>
+        )}
       </Flash>
     )
   }
@@ -172,6 +204,11 @@ export const DevinAnalysis = React.memo(function DevinAnalysisFn({ githubUrl, is
               </Button>
             </div>
           </div>
+          {deleteMutation.isError && (
+            <div style={{ padding: '0.5rem 1rem', borderBottom: '1px solid var(--borderColor-default)', background: 'var(--bgColor-danger-muted)' }}>
+              <Text style={{ color: 'var(--fgColor-danger)', fontSize: '0.85rem' }}>{deleteMutation.error.message}</Text>
+            </div>
+          )}
 
           {/* Plan content */}
           {analysis.plan && (

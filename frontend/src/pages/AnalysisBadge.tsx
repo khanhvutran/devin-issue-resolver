@@ -4,7 +4,7 @@ import { Text, Label } from '@primer/react'
 import createClient from 'openapi-fetch'
 import type { paths, components } from '../api-schema'
 import { FixBadge } from './FixBadge'
-import { getConfidenceColor } from '../utils'
+import { getConfidenceColor, extractApiError, isNetworkError, getNetworkErrorMessage } from '../utils'
 
 const client = createClient<paths>()
 
@@ -16,15 +16,20 @@ interface Props {
 }
 
 export const AnalysisBadge = React.memo(function AnalysisBadgeFn({ githubUrl, issueId }: Props) {
-  const { data: analysis } = useQuery<AnalysisResult | null>({
+  const { data: analysis, error: queryError } = useQuery<AnalysisResult | null>({ 
     queryKey: ['devin-analysis', githubUrl, issueId],
     queryFn: async () => {
-      const { data, error } = await client.GET('/api/devin/analysis', {
-        params: { query: { github_url: githubUrl, issue_id: issueId } },
-      })
-      if (error) throw new Error(JSON.stringify(error))
-      if (data.status === 'not_found') return null
-      return data
+      try {
+        const { data, error } = await client.GET('/api/devin/analysis', {
+          params: { query: { github_url: githubUrl, issue_id: issueId } },
+        })
+        if (error) throw new Error(extractApiError(error, 'Failed to load analysis status.'))
+        if (data.status === 'not_found') return null
+        return data
+      } catch (err) {
+        if (isNetworkError(err)) throw new Error(getNetworkErrorMessage())
+        throw err
+      }
     },
     refetchInterval: (query) => {
       const status = query.state.data?.status
@@ -32,6 +37,8 @@ export const AnalysisBadge = React.memo(function AnalysisBadgeFn({ githubUrl, is
       return false
     },
   })
+
+  if (queryError) return <Label variant="attention">Error</Label>
 
   if (!analysis) return null
 
