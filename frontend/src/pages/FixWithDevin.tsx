@@ -101,11 +101,6 @@ export const FixWithDevin = React.memo(function FixWithDevinFn({
       <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--fgColor-muted)' }}>
         <span className="spinner spinner--small" />
         <Text>Devin is implementing the fix...</Text>
-        {fixStatus?.fix_devin_url && (
-          <PrimerLink href={fixStatus.fix_devin_url} target="_blank" rel="noopener noreferrer">
-            Watch live
-          </PrimerLink>
-        )}
       </div>
     )
   }

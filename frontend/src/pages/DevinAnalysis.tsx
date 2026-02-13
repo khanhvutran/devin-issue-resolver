@@ -96,11 +96,6 @@ export const DevinAnalysis = React.memo(function DevinAnalysisFn({ githubUrl, is
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--fgColor-muted)' }}>
         <span className="spinner spinner--small" />
         <Text>Devin is analyzing this issue...</Text>
-        {analysis?.devin_url && (
-          <PrimerLink href={analysis.devin_url} target="_blank" rel="noopener noreferrer">
-            Watch live
-          </PrimerLink>
-        )}
       </div>
     )
   }
